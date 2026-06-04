@@ -1,44 +1,39 @@
-### Building the Dashboard
+import streamlit as st 
+from studentDatabase import StudentDatabase
+from performanceDashboard import PerformanceDashboard
+class AcademicTrackingApp:
+    def __init__(self):
+        st.set_page_config(page_title="School Performance Tracker")
+        self.database = StudentDatabase()
 
-import streamlit as st
-import pandas as pd
-import plotly.express as px
+    def run(self):
+        st.sidebar.title("Navigation")
+        page = st.sidebar.radio("Go to", ["Enter Data", "View Dashboard"])
+        if page == "Enter Data":
+            self._render_entry_page()
+        else:
+            PerformanceDashboard(self.database).render()
 
-# 1. Page Title
-st.title("Learner Performance Tracker")
+    def _render_entry_page(self):
+        st.header("Enter Exam Scores")
+        with st.form("data_form", clear_on_submit=True):
+            name = st.text_input("Learner Name (e.g., Malcolm)")
+            subject = st.selectbox("Subject", ["Maths", "English", "Science", "Swahili"])
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                e1 = st.number_input("Exam 1", 0, 100)
+            with col2:
+                e2 = st.number_input("Exam 2", 0, 100)
+            with col3:
+                e3 = st.number_input("Exam 3", 0, 100)
 
-# 2. Input Section (Sidebar)
-st.sidebar.header("Enter Exam Data")
-learner_name = st.sidebar.text_input("Learner Name", "Student A")
-exam1 = st.sidebar.number_input("Exam 1 Score", min_value=0, max_value=100, value=0)
-exam2 = st.sidebar.number_input("Exam 2 Score", min_value=0, max_value=100, value=0)
-exam3 = st.sidebar.number_input("Exam 3 Score", min_value=0, max_value=100, value=0)
+            submit = st.form_submit_button("Save to Database")
+            if submit:
+                if name:
+                    self.database.add_record(name, subject, [e1, e2, e3])
+                    st.success(f"Data for {name} in {subject} saved successfully!")
+                else:
+                    st.error("Please enter a learner name.")
 
-# 3. Data Processing
-data = {
-    "Exams": ["Exam 1", "Exam 2", "Exam 3"],
-    "Scores": [exam1, exam2, exam3]
-}
-df = pd.DataFrame(data)
-
-# 4. Display Results
-st.subheader(f"Results for: {learner_name}")
-
-# Create the Bar Graph
-fig = px.bar(
-    df, 
-    x="Exams", 
-    y="Scores", 
-    text="Scores", 
-    color="Exams",
-    title=f" Mathematics Performance for - {learner_name}"
-)
-
-# Update layout to fix the scale
-fig.update_layout(yaxis_range=[0, 100])
-
-# Show graph in Streamlit
-st.plotly_chart(fig)
-
-# Show a summary table
-st.table(df)
+if __name__ == "__main__":
+    AcademicTrackingApp().run()
