@@ -15,19 +15,19 @@ class AcademicTrackingApp:
             PerformanceDashboard(self.database).render()
 
     def _render_entry_page(self):
-        st.header("Enter Exam Scores")
+        st.header("Enter School Based Assessment Scores")
         with st.form("data_form", clear_on_submit=True):
             name = st.text_input("Learner Name (e.g., Malcolm)")
             subject = st.selectbox("Subject", ["Maths", "English", "Science", "Swahili"])
             col1, col2, col3 = st.columns(3)
             with col1:
-                e1 = st.number_input("Exam 1", 0, 100)
+                e1 = st.number_input("Assessment 1", 0, 100)
             with col2:
-                e2 = st.number_input("Exam 2", 0, 100)
+                e2 = st.number_input("Assessment 2", 0, 100)
             with col3:
-                e3 = st.number_input("Exam 3", 0, 100)
+                e3 = st.number_input("Assessment 3", 0, 100)
 
-            submit = st.form_submit_button("Save to Database")
+            submit = st.form_submit_button("Save Details")
             if submit:
                 if name:
                     self.database.add_record(name, subject, [e1, e2, e3])

@@ -7,7 +7,7 @@ class PerformanceDashboard:
         self.database = database
 
     def render(self):
-        st.header("📊 Performance Dashboard")
+        st.header("Learner History")
         if not self.database.has_data():
             st.info("No data found. Please go to 'Enter Data'.")
             return
