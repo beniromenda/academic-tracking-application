@@ -1,6 +1,6 @@
 import streamlit as st 
-from studentDatabase import StudentDatabase
-from performanceDashboard import PerformanceDashboard
+from initial_implementation.studentDatabase import StudentDatabase
+from initial_implementation.performanceDashboard import PerformanceDashboard
 class AcademicTrackingApp:
     def __init__(self):
         st.set_page_config(page_title="School Performance Tracker")

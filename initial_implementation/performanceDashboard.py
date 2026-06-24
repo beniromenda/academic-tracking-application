@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from studentDatabase import StudentDatabase
+from initial_implementation.studentDatabase import StudentDatabase
 class PerformanceDashboard:
     def __init__(self, database: StudentDatabase):
         self.database = database
