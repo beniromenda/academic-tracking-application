@@ -1,0 +1,87 @@
+{% extends 'core/base.html' %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<section class="panel">
+    <h2>Performance Reports</h2>
+    <form method="get" class="filters">
+        <div>
+            <label for="class_name">Class</label>
+            <select id="class_name" name="class_name">
+                <option value="">All Classes</option>
+                {% for class_item in class_choices %}
+                    <option value="{{ class_item }}" {% if class_item == selected_class %}selected{% endif %}>{{ class_item }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="competency">Competency</label>
+            <select id="competency" name="competency">
+                <option value="">All Competencies</option>
+                {% for competency in competencies %}
+                    <option value="{{ competency.id }}" {% if competency.id|stringformat:'s' == selected_competency %}selected{% endif %}>{{ competency.competency_code }} - {{ competency.competency_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="rating">Rating Contains</label>
+            <input id="rating" name="rating" value="{{ selected_rating }}" placeholder="e.g. Exceeding">
+        </div>
+        <button class="btn" type="submit">Filter</button>
+        <a href="{% url 'report_view' %}" class="btn btn-secondary">Reset</a>
+    </form>
+</section>
+
+<section class="panel">
+    <h3>Summary by Competency</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Competency</th>
+                <th>Average Score</th>
+                <th>Total Results</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in summary %}
+                <tr>
+                    <td>{{ item.task__competency__competency_name }}</td>
+                    <td>{{ item.avg_score|floatformat:2 }}</td>
+                    <td>{{ item.total }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3">No records found for selected filters.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <h3>Detailed Results</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Learner</th>
+                <th>Class</th>
+                <th>Task</th>
+                <th>Competency</th>
+                <th>Score</th>
+                <th>Rating</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for result in results %}
+                <tr>
+                    <td>{{ result.learner.full_name }}</td>
+                    <td>{{ result.learner.class_name }}</td>
+                    <td>{{ result.task.task_title }}</td>
+                    <td>{{ result.task.competency.competency_name }}</td>
+                    <td>{{ result.score }}</td>
+                    <td>{{ result.rating }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6">No results available.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

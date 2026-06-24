@@ -1,0 +1,42 @@
+{% extends 'core/base.html' %} {% block title %}Assessment Feedback{% endblock
+%} {% block content %}
+<section class="panel">
+  <h2>Assessment Feedback</h2>
+  {% if role == 'Learner' %}
+  <p>Showing your personal assessment feedback.</p>
+  {% else %}
+  <p>Showing all learner assessment feedback.</p>
+  {% endif %}
+
+  <table>
+    <thead>
+      <tr>
+        <th>Learner</th>
+        <th>Task</th>
+        <th>Competency</th>
+        <th>Score</th>
+        <th>Rating</th>
+        <th>Feedback</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for result in results %}
+      <tr>
+        <td>{{ result.learner.full_name }}</td>
+        <td>{{ result.task.task_title }}</td>
+        <td>{{ result.task.competency.competency_name }}</td>
+        <td>{{ result.score }}</td>
+        <td>{{ result.rating }}</td>
+        <td>{{ result.feedback|default:'-' }}</td>
+        <td>{{ result.assessment_date }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7">No feedback records available.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

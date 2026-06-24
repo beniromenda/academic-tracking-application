@@ -1,0 +1,36 @@
+{% extends 'core/base.html' %} {% block title %}Competencies{% endblock %} {%
+block content %}
+<section class="panel">
+  <h2>Competencies</h2>
+  <a class="btn" href="{% url 'competency_create' %}">Create Competency</a>
+  <table>
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Created By</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for competency in competencies %}
+      <tr>
+        <td>{{ competency.competency_code }}</td>
+        <td>{{ competency.competency_name }}</td>
+        <td>{{ competency.description|default:'-' }}</td>
+        <td>{{ competency.created_by.username }}</td>
+        <td>
+          <a href="{% url 'competency_update' competency.id %}">Edit</a> |
+          <a href="{% url 'competency_delete' competency.id %}">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5">No competencies found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

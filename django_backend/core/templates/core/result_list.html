@@ -1,0 +1,40 @@
+{% extends 'core/base.html' %} {% block title %}Assessment Results{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2>Assessment Results</h2>
+  <a class="btn" href="{% url 'result_create' %}">Record Result</a>
+  <table>
+    <thead>
+      <tr>
+        <th>Learner</th>
+        <th>Task</th>
+        <th>Competency</th>
+        <th>Score</th>
+        <th>Rating</th>
+        <th>Date</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for result in results %}
+      <tr>
+        <td>{{ result.learner.full_name }}</td>
+        <td>{{ result.task.task_title }}</td>
+        <td>{{ result.task.competency.competency_name }}</td>
+        <td>{{ result.score }}</td>
+        <td>{{ result.rating }}</td>
+        <td>{{ result.assessment_date }}</td>
+        <td>
+          <a href="{% url 'result_update' result.id %}">Edit</a> |
+          <a href="{% url 'result_delete' result.id %}">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7">No assessment results found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

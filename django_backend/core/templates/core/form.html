@@ -1,0 +1,13 @@
+{% extends 'core/base.html' %} {% block title %}{{ title }}{% endblock %} {%
+block content %}
+<section class="panel narrow">
+  <h2>{{ title }}</h2>
+  <form method="post">
+    {% csrf_token %} {{ form.as_p }}
+    <div class="actions">
+      <button type="submit" class="btn">Save</button>
+      <a href="javascript:history.back()" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

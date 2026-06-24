@@ -1,0 +1,44 @@
+{% extends 'core/base.html' %} {% block title %}User Accounts{% endblock %} {%
+block content %}
+<section class="panel">
+  <h2>User Accounts</h2>
+  <a class="btn" href="{% url 'user_create' %}">Create User</a>
+  <table>
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Full Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user_obj in users %}
+      <tr>
+        <td>{{ user_obj.username }}</td>
+        <td>{{ user_obj.first_name }} {{ user_obj.last_name }}</td>
+        <td>{{ user_obj.email }}</td>
+        <td>
+          {% if user_obj.account %}{{ user_obj.account.role }}{% else %}N/A{%
+          endif %}
+        </td>
+        <td>
+          {% if user_obj.account %}{{ user_obj.account.status }}{% else %}N/A{%
+          endif %}
+        </td>
+        <td>
+          <a href="{% url 'user_update' user_obj.id %}">Edit</a> |
+          <a href="{% url 'user_delete' user_obj.id %}">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6">No users found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
