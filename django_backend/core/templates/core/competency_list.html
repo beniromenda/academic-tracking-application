@@ -43,7 +43,6 @@
         <table>
           <thead>
             <tr>
-              <th>Subject</th>
               <th>Code</th>
               <th>Name</th>
               <th>Description</th>
@@ -54,7 +53,6 @@
           <tbody>
             {% for competency in competencies %}
             <tr>
-              <td>{{ competency.subject.subject_name|default:'-' }}</td>
               <td>{{ competency.competency_code }}</td>
               <td>{{ competency.competency_name }}</td>
               <td>{{ competency.description|default:'-' }}</td>
@@ -66,7 +64,7 @@
             </tr>
             {% empty %}
             <tr>
-              <td colspan="6">No competencies found.</td>
+              <td colspan="5">No competencies found.</td>
             </tr>
             {% endfor %}
           </tbody>

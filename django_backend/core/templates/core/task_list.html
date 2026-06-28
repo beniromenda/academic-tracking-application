@@ -6,6 +6,7 @@
   <table>
     <thead>
       <tr>
+        <th>Subject</th>
         <th>Task Title</th>
         <th>Competency</th>
         <th>Task Date</th>
@@ -16,6 +17,7 @@
     <tbody>
       {% for task in tasks %}
       <tr>
+        <td>{{ task.subject.subject_name|default:'-' }}</td>
         <td>{{ task.task_title }}</td>
         <td>
           {{ task.competency.competency_code }} - {{
@@ -30,7 +32,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="5">No tasks found.</td>
+        <td colspan="6">No tasks found.</td>
       </tr>
       {% endfor %}
     </tbody>

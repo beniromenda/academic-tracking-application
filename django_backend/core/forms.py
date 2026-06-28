@@ -174,32 +174,24 @@ class LearnerProfileForm(forms.ModelForm):
 
 
 class CompetencyForm(forms.ModelForm):
-    def __init__(self, *args, active_subject=None, request_user=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        if request_user and hasattr(request_user, 'account') and request_user.account.role == UserAccount.ROLE_TEACHER:
-            teacher_subjects = request_user.account.subjects.all()
-            self.fields['subject'].queryset = teacher_subjects
-        if active_subject:
-            self.fields['subject'].queryset = Subject.objects.filter(pk=active_subject.pk)
-            self.fields['subject'].initial = active_subject
-
     class Meta:
         model = Competency
-        fields = ['subject', 'competency_code', 'competency_name', 'description']
+        fields = ['competency_code', 'competency_name', 'description']
 
 
 class AssessmentTaskForm(forms.ModelForm):
     def __init__(self, *args, active_subject=None, **kwargs):
         super().__init__(*args, **kwargs)
         if active_subject:
-            qs = Competency.objects.filter(subject=active_subject)
-            if self.instance and self.instance.pk:
-                qs = qs | Competency.objects.filter(pk=self.instance.competency_id)
-            self.fields['competency'].queryset = qs.distinct()
+            self.fields['competency'].queryset = Competency.objects.all()
+            self.fields['subject'].initial = active_subject
+            self.fields['subject'].widget = forms.HiddenInput()
+        else:
+            self.fields['subject'].widget = forms.HiddenInput()
 
     class Meta:
         model = AssessmentTask
-        fields = ['competency', 'task_title', 'task_description', 'task_date']
+        fields = ['subject', 'competency', 'task_title', 'task_description', 'task_date']
         widgets = {
             'task_date': forms.DateInput(attrs={'type': 'date'}),
         }
@@ -209,7 +201,7 @@ class AssessmentResultForm(forms.ModelForm):
     def __init__(self, *args, active_subject=None, **kwargs):
         super().__init__(*args, **kwargs)
         if active_subject:
-            tasks = AssessmentTask.objects.filter(competency__subject=active_subject)
+            tasks = AssessmentTask.objects.filter(subject=active_subject)
             if self.instance and self.instance.pk:
                 tasks = tasks | AssessmentTask.objects.filter(pk=self.instance.task_id)
             self.fields['task'].queryset = tasks.distinct()

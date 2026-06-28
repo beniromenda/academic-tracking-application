@@ -81,7 +81,6 @@ class LearnerProfile(models.Model):
 
 
 class Competency(models.Model):
-	subject = models.ForeignKey(Subject, on_delete=models.PROTECT, related_name='competencies', null=True, blank=True)
 	competency_code = models.CharField(max_length=20, unique=True)
 	competency_name = models.CharField(max_length=100)
 	description = models.TextField(blank=True)
@@ -95,7 +94,8 @@ class Competency(models.Model):
 
 
 class AssessmentTask(models.Model):
-	competency = models.ForeignKey(Competency, on_delete=models.PROTECT, related_name='tasks')
+	subject = models.ForeignKey(Subject, on_delete=models.PROTECT, related_name='assessment_tasks', null=True, blank=True)
+	competency = models.ForeignKey(Competency, on_delete=models.CASCADE, related_name='tasks')
 	teacher = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_tasks')
 	task_title = models.CharField(max_length=100)
 	task_description = models.TextField(blank=True)
@@ -105,7 +105,7 @@ class AssessmentTask(models.Model):
 		ordering = ['-task_date', 'task_title']
 
 	def __str__(self):
-		return f'{self.task_title} ({self.competency.competency_code})'
+		return f'{self.task_title} ({self.subject.subject_name if self.subject else self.competency.competency_code})'
 
 
 class AssessmentResult(models.Model):
