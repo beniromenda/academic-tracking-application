@@ -208,7 +208,7 @@ class AssessmentResultForm(forms.ModelForm):
 
     class Meta:
         model = AssessmentResult
-        fields = ['learner', 'task', 'score', 'rating', 'feedback', 'assessment_date']
+        fields = ['learner', 'task', 'score', 'rating', 'mastery_status', 'feedback', 'assessment_date']
         widgets = {
             'assessment_date': forms.DateInput(attrs={'type': 'date'}),
         }

@@ -109,6 +109,17 @@ class AssessmentTask(models.Model):
 
 
 class AssessmentResult(models.Model):
+	MASTERY_NOT_YET_DEMONSTRATED = 'Not Yet Demonstrated'
+	MASTERY_DEVELOPING = 'Developing'
+	MASTERY_PROFICIENT = 'Proficient'
+	MASTERY_MASTERY = 'Mastery'
+	MASTERY_STATUS_CHOICES = [
+		(MASTERY_NOT_YET_DEMONSTRATED, 'Not Yet Demonstrated'),
+		(MASTERY_DEVELOPING, 'Developing'),
+		(MASTERY_PROFICIENT, 'Proficient'),
+		(MASTERY_MASTERY, 'Mastery'),
+	]
+
 	learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name='results')
 	task = models.ForeignKey(AssessmentTask, on_delete=models.CASCADE, related_name='results')
 	teacher = models.ForeignKey(User, on_delete=models.PROTECT, related_name='recorded_results')
@@ -118,6 +129,13 @@ class AssessmentResult(models.Model):
 		validators=[MinValueValidator(0), MaxValueValidator(100)],
 	)
 	rating = models.CharField(max_length=30)
+	mastery_status = models.CharField(
+		max_length=50,
+		choices=MASTERY_STATUS_CHOICES,
+		blank=True,
+		null=True,
+		default=MASTERY_DEVELOPING,
+	)
 	feedback = models.TextField(blank=True)
 	assessment_date = models.DateField()
 

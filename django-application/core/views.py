@@ -450,7 +450,7 @@ def task_create(request):
 		form = AssessmentTaskForm(request.POST, active_subject=active_subject)
 		if form.is_valid():
 			task = form.save(commit=False)
-			task.subject = active_subject or task.competency.subject
+			task.subject = active_subject or task.subject
 			task.teacher = request.user
 			task.save()
 			messages.success(request, 'Assessment task created successfully.')
@@ -478,7 +478,7 @@ def task_update(request, pk):
 		form = AssessmentTaskForm(request.POST, instance=task, active_subject=active_subject)
 		if form.is_valid():
 			updated_task = form.save(commit=False)
-			updated_task.subject = active_subject or updated_task.subject or updated_task.competency.subject
+			updated_task.subject = active_subject or updated_task.subject
 			updated_task.save()
 			messages.success(request, 'Assessment task updated successfully.')
 			return redirect('task_list')
