@@ -2,39 +2,51 @@
 {% block title %}Assessment Results{% endblock %}
 {% block content %}
 <section class="panel">
-  <h2>Assessment Results</h2>
-  <a class="btn" href="{% url 'result_create' %}">Record Result</a>
+  <div class="panel-header form-header">
+    <div>
+      <p class="section-kicker">Teacher Result Management</p>
+      <h2>Manage Assessment Results</h2>
+      <p>Record and review learner performance for each task.</p>
+    </div>
+    <a class="btn" href="{% url 'result_create' %}">Record Result</a>
+  </div>
+  <form method="get" class="filters">
+    <div>
+      <label for="q">Search</label>
+      <input id="q" name="q" value="{{ query }}" placeholder="Search by learner or task" />
+    </div>
+    <button type="submit" class="btn">Search</button>
+    <a class="btn btn-secondary" href="{% url 'result_list' %}">Clear</a>
+  </form>
   <table>
     <thead>
       <tr>
-        <th>Subject</th>
         <th>Learner</th>
         <th>Task</th>
-        <th>Competency</th>
         <th>Score</th>
-        <th>Rating</th>
-        <th>Date</th>
+        <th>CBC Rating</th>
+        <th>Mastery Status</th>
+        <th>Feedback</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for result in results %}
       <tr>
-        <td>{{ result.task.subject.subject_name|default:'-' }}</td>
         <td>{{ result.learner.full_name }}</td>
-        <td>{{ result.task.task_title }}</td>
-        <td>{{ result.task.competency.competency_name }}</td>
+        <td>{{ result.task.task_name }}</td>
         <td>{{ result.score }}</td>
-        <td>{{ result.rating }}</td>
-        <td>{{ result.assessment_date }}</td>
+        <td>{{ result.cbc_rating }}</td>
+        <td>{{ result.mastery_status }}</td>
+        <td>{{ result.feedback|default:'-' }}</td>
         <td>
-          <a href="{% url 'result_update' result.id %}">Edit</a> |
-          <a href="{% url 'result_delete' result.id %}">Delete</a>
+          <a class="action-pill action-pill--edit" href="{% url 'result_update' result.id %}">Edit</a>
+          <a class="action-pill action-pill--deactivate" href="{% url 'result_delete' result.id %}">Delete</a>
         </td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="8">No assessment results found.</td>
+        <td colspan="6">No assessment results found.</td>
       </tr>
       {% endfor %}
     </tbody>

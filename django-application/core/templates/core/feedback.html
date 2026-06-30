@@ -18,7 +18,7 @@
         <th>Task</th>
         <th>Competency</th>
         <th>Score</th>
-        <th>Rating</th>
+        <th>CBC Rating</th>
         <th>Feedback</th>
         <th>Date</th>
       </tr>
@@ -27,12 +27,12 @@
       {% for result in results %}
       <tr>
         <td>{{ result.learner.full_name }}</td>
-        <td>{{ result.task.task_title }}</td>
+        <td>{{ result.task.task_name }}</td>
         <td>{{ result.task.competency.competency_name }}</td>
         <td>{{ result.score }}</td>
-        <td>{{ result.rating }}</td>
+        <td>{{ result.cbc_rating }}</td>
         <td>{{ result.feedback|default:'-' }}</td>
-        <td>{{ result.assessment_date }}</td>
+        <td>{{ result.created_at|date:'Y-m-d' }}</td>
       </tr>
       {% empty %}
       <tr>

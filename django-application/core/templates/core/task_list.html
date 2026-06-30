@@ -2,37 +2,45 @@
 {% block title %}Assessment Tasks{% endblock %}
 {% block content %}
 <section class="panel">
-  <h2>Assessment Tasks</h2>
-  <a class="btn" href="{% url 'task_create' %}">Create Task</a>
+  <div class="panel-header form-header">
+    <div>
+      <p class="section-kicker">Teacher Task Management</p>
+      <h2>Manage Assessment Tasks</h2>
+      <p>Click Create to add new task. Each task must be linked to a competency.</p>
+    </div>
+    <a class="btn" href="{% url 'task_create' %}">Create Task</a>
+  </div>
+  <form method="get" class="filters">
+    <div>
+      <label for="q">Search</label>
+      <input id="q" name="q" value="{{ query }}" placeholder="Search by task name or competency" />
+    </div>
+    <button type="submit" class="btn">Search</button>
+    <a class="btn btn-secondary" href="{% url 'task_list' %}">Clear</a>
+  </form>
   <table>
     <thead>
       <tr>
-        <th>Subject</th>
-        <th>Task Title</th>
+        <th>Task Name</th>
         <th>Competency</th>
-        <th>Task Date</th>
-        <th>Teacher</th>
+        <th>Description</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for task in tasks %}
       <tr>
-        <td>{{ task.subject.subject_name|default:'-' }}</td>
-        <td>{{ task.task_title }}</td>
+        <td>{{ task.task_name }}</td>
+        <td>{{ task.competency.competency_code }} - {{ task.competency.competency_name }}</td>
+        <td>{{ task.description|default:'-' }}</td>
         <td>
-          {{ task.competency.competency_code }} - {{ task.competency.competency_name }}
-        </td>
-        <td>{{ task.task_date }}</td>
-        <td>{{ task.teacher.username }}</td>
-        <td>
-          <a href="{% url 'task_update' task.id %}">Edit</a> |
-          <a href="{% url 'task_delete' task.id %}">Delete</a>
+          <a class="action-pill action-pill--edit" href="{% url 'task_update' task.id %}">Edit</a>
+          <a class="action-pill action-pill--deactivate" href="{% url 'task_delete' task.id %}">Delete</a>
         </td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="6">No tasks found.</td>
+        <td colspan="4">No tasks found.</td>
       </tr>
       {% endfor %}
     </tbody>

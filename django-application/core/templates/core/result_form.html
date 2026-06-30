@@ -1,0 +1,38 @@
+{% extends 'core/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<section class="panel narrow form-shell">
+  <div class="panel-header form-header">
+    <div>
+      <p class="section-kicker">Teacher Result Management</p>
+      <h2>{{ title }}</h2>
+      <p>Enter the learner result, CBC rating, mastery status, and feedback.</p>
+    </div>
+  </div>
+
+  <form method="post" class="form-stack">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="message error">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="form-grid">
+      {% for field in form.visible_fields %}
+      <div class="form-field {% if field.field.widget.input_type == 'textarea' %}form-field--full{% endif %}">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.errors %}
+        <div class="field-error">{{ field.errors }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="actions form-actions">
+      <button type="submit" class="btn">{{ submit_label|default:'Save' }}</button>
+      <a href="{% url cancel_url|default:'result_list' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

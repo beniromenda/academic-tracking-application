@@ -25,13 +25,13 @@ class CompetencyAdmin(admin.ModelAdmin):
 
 @admin.register(AssessmentTask)
 class AssessmentTaskAdmin(admin.ModelAdmin):
-	list_display = ('task_title', 'competency', 'teacher', 'task_date')
-	list_filter = ('task_date', 'competency')
-	search_fields = ('task_title', 'competency__competency_code')
+	list_display = ('task_name', 'competency', 'created_by', 'created_at')
+	list_filter = ('created_at', 'competency')
+	search_fields = ('task_name', 'competency__competency_code', 'competency__competency_name', 'description')
 
 
 @admin.register(AssessmentResult)
 class AssessmentResultAdmin(admin.ModelAdmin):
-	list_display = ('learner', 'task', 'teacher', 'score', 'rating', 'assessment_date')
-	list_filter = ('assessment_date', 'rating', 'task__competency')
-	search_fields = ('learner__full_name', 'task__task_title', 'rating')
+	list_display = ('learner', 'task', 'created_by', 'score', 'cbc_rating', 'mastery_status', 'created_at')
+	list_filter = ('mastery_status', 'cbc_rating', 'task__competency')
+	search_fields = ('learner__full_name', 'task__task_name', 'cbc_rating')

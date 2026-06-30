@@ -24,7 +24,7 @@
         </div>
         <div>
             <label for="rating">Rating Contains</label>
-            <input id="rating" name="rating" value="{{ selected_rating }}" placeholder="e.g. Exceeding">
+            <input id="rating" name="rating" value="{{ selected_rating }}" placeholder="e.g. Proficient">
         </div>
         <button class="btn" type="submit">Filter</button>
         <a href="{% url 'report_view' %}" class="btn btn-secondary">Reset</a>
@@ -75,10 +75,10 @@
                     <td>{{ result.task.subject.subject_name|default:'-' }}</td>
                     <td>{{ result.learner.full_name }}</td>
                     <td>{{ result.learner.class_name }}</td>
-                    <td>{{ result.task.task_title }}</td>
+                    <td>{{ result.task.task_name }}</td>
                     <td>{{ result.task.competency.competency_name }}</td>
                     <td>{{ result.score }}</td>
-                    <td>{{ result.rating }}</td>
+                    <td>{{ result.cbc_rating }}</td>
                 </tr>
             {% empty %}
                 <tr><td colspan="7">No results available.</td></tr>

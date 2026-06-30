@@ -1,0 +1,45 @@
+{% extends 'core/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<section class="panel narrow form-shell">
+  <div class="panel-header form-header">
+    <div>
+      <p class="section-kicker">Teacher Task Management</p>
+      <h2>{{ title }}</h2>
+      {% if title == 'Create Assessment Task - Link to Competency' %}
+      <p>Create a task and link it to an existing competency.</p>
+      {% else %}
+      <p>Edit the task details and keep it linked to the correct competency.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="post" class="form-stack">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="message error">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="form-grid">
+      {% for field in form.visible_fields %}
+      <div class="form-field {% if field.field.widget.input_type == 'textarea' %}form-field--full{% endif %}">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.help_text %}
+        <div class="field-help">{{ field.help_text }}</div>
+        {% endif %}
+        {% if field.errors %}
+        <div class="field-error">{{ field.errors }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="actions form-actions">
+      <button type="submit" class="btn">{{ submit_label|default:'Save' }}</button>
+      <a href="{% url cancel_url|default:'task_list' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -247,15 +247,49 @@ class AssessmentTaskForm(forms.ModelForm):
 
     class Meta:
         model = AssessmentTask
-        fields = ['subject', 'competency', 'task_title', 'task_description', 'task_date']
-        widgets = {
-            'task_date': forms.DateInput(attrs={'type': 'date'}),
+        fields = ['subject', 'competency', 'task_name', 'description']
+        labels = {
+            'task_name': 'Task Name',
+            'competency': 'Competency',
+            'description': 'Description',
         }
+        error_messages = {
+            'competency': {
+                'required': 'Competency must be selected.',
+            },
+            'task_name': {
+                'required': 'Task Name is required.',
+            },
+            'description': {
+                'required': 'Description is required.',
+            },
+        }
+        widgets = {
+            'task_name': forms.TextInput(attrs={'placeholder': 'Addition Problems Test'}),
+            'description': forms.Textarea(attrs={'rows': 5, 'placeholder': 'What the task is about'}),
+        }
+
+    def clean_task_name(self):
+        task_name = self.cleaned_data['task_name'].strip()
+        existing = AssessmentTask.objects.filter(task_name__iexact=task_name)
+        if self.instance.pk:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise forms.ValidationError('Task name must be unique.')
+        return task_name
+
+    def clean_description(self):
+        description = self.cleaned_data['description'].strip()
+        if not description:
+            raise forms.ValidationError('Description is required.')
+        return description
 
 
 class AssessmentResultForm(forms.ModelForm):
     def __init__(self, *args, active_subject=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['learner'].queryset = LearnerProfile.objects.order_by('full_name')
+        self.fields['task'].queryset = AssessmentTask.objects.select_related('competency').order_by('task_name')
         if active_subject:
             tasks = AssessmentTask.objects.filter(subject=active_subject)
             if self.instance and self.instance.pk:
@@ -264,9 +298,13 @@ class AssessmentResultForm(forms.ModelForm):
 
     class Meta:
         model = AssessmentResult
-        fields = ['learner', 'task', 'score', 'rating', 'mastery_status', 'feedback', 'assessment_date']
+        fields = ['learner', 'task', 'score', 'cbc_rating', 'mastery_status', 'feedback']
+        labels = {
+            'cbc_rating': 'CBC Rating',
+            'mastery_status': 'Mastery Status',
+        }
         widgets = {
-            'assessment_date': forms.DateInput(attrs={'type': 'date'}),
+            'feedback': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Teacher feedback'}),
         }
 
     def clean(self):
@@ -280,3 +318,15 @@ class AssessmentResultForm(forms.ModelForm):
             if existing.exists():
                 raise forms.ValidationError('A result for this learner and task already exists.')
         return cleaned_data
+
+    def clean_cbc_rating(self):
+        cbc_rating = self.cleaned_data['cbc_rating'].strip()
+        if not cbc_rating:
+            raise forms.ValidationError('CBC Rating is required.')
+        return cbc_rating
+
+    def clean_feedback(self):
+        feedback = self.cleaned_data['feedback'].strip()
+        if not feedback:
+            raise forms.ValidationError('Feedback is required.')
+        return feedback

@@ -99,16 +99,17 @@ class Competency(models.Model):
 class AssessmentTask(models.Model):
 	subject = models.ForeignKey(Subject, on_delete=models.PROTECT, related_name='assessment_tasks', null=True, blank=True)
 	competency = models.ForeignKey(Competency, on_delete=models.CASCADE, related_name='tasks')
-	teacher = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_tasks')
-	task_title = models.CharField(max_length=100)
-	task_description = models.TextField(blank=True)
-	task_date = models.DateField()
+	created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_tasks')
+	task_name = models.CharField(max_length=100, unique=True)
+	description = models.TextField()
+	task_date = models.DateField(auto_now_add=True)
+	created_at = models.DateTimeField(default=timezone.now, editable=False)
 
 	class Meta:
-		ordering = ['-task_date', 'task_title']
+		ordering = ['-created_at', 'task_name']
 
 	def __str__(self):
-		return f'{self.task_title} ({self.subject.subject_name if self.subject else self.competency.competency_code})'
+		return f'{self.task_name} ({self.competency.competency_code})'
 
 
 class AssessmentResult(models.Model):
@@ -125,28 +126,26 @@ class AssessmentResult(models.Model):
 
 	learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name='results')
 	task = models.ForeignKey(AssessmentTask, on_delete=models.CASCADE, related_name='results')
-	teacher = models.ForeignKey(User, on_delete=models.PROTECT, related_name='recorded_results')
+	created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='recorded_results')
 	score = models.DecimalField(
 		max_digits=5,
 		decimal_places=2,
 		validators=[MinValueValidator(0), MaxValueValidator(100)],
 	)
-	rating = models.CharField(max_length=30)
+	cbc_rating = models.CharField(max_length=30)
 	mastery_status = models.CharField(
 		max_length=50,
 		choices=MASTERY_STATUS_CHOICES,
-		blank=True,
-		null=True,
 		default=MASTERY_DEVELOPING,
 	)
-	feedback = models.TextField(blank=True)
-	assessment_date = models.DateField()
+	feedback = models.TextField()
+	created_at = models.DateTimeField(default=timezone.now, editable=False)
 
 	class Meta:
-		ordering = ['-assessment_date']
+		ordering = ['-created_at']
 		constraints = [
 			models.UniqueConstraint(fields=['learner', 'task'], name='unique_learner_task_result'),
 		]
 
 	def __str__(self):
-		return f'{self.learner.full_name} - {self.task.task_title} ({self.score})'
+		return f'{self.learner.full_name} - {self.task.task_name} ({self.score})'
