@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Max, Min, Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -667,45 +667,83 @@ def report_view(request):
 	if access_denied:
 		return access_denied
 
-	subject_required = _require_teacher_subject(request)
-	if subject_required:
-		return subject_required
-	active_subject = _active_subject_for_request(request)
-
-	class_filter = request.GET.get('class_name', '').strip()
+	learner_filter = request.GET.get('learner', '').strip()
 	competency_filter = request.GET.get('competency', '').strip()
 	rating_filter = request.GET.get('rating', '').strip()
+	view_requested = request.GET.get('view_report') == '1'
 
-	results = AssessmentResult.objects.select_related('learner', 'task', 'task__competency').all()
-	if active_subject:
-		results = results.filter(task__subject=active_subject)
-	if class_filter:
-		results = results.filter(learner__class_name=class_filter)
-	if competency_filter:
-		results = results.filter(task__competency__id=competency_filter)
-	if rating_filter:
-		results = results.filter(cbc_rating__icontains=rating_filter)
+	learners = LearnerProfile.objects.order_by('full_name')
+	results = AssessmentResult.objects.none()
+	selected_learner = None
+	validation = {
+		'required_fields_ok': True,
+		'duplicate_ok': True,
+		'missing_count': 0,
+		'duplicate_count': 0,
+	}
 
-	summary = (
-		results.values('task__competency__competency_name')
-		.annotate(avg_score=Avg('score'), total=Count('id'))
-		.order_by('task__competency__competency_name')
-	)
+	if learner_filter:
+		selected_learner = learners.filter(pk=learner_filter).first()
 
-	class_choices = LearnerProfile.objects.values_list('class_name', flat=True).distinct().order_by('class_name')
+	if selected_learner:
+		results = AssessmentResult.objects.select_related('learner', 'task', 'task__competency', 'created_by').filter(learner=selected_learner)
+		if competency_filter:
+			results = results.filter(task__competency__id=competency_filter)
+		if rating_filter:
+			results = results.filter(cbc_rating=rating_filter)
+		results = results.order_by('task__task_name')
+
+		missing_required_results = results.filter(
+			Q(score__isnull=True)
+			| Q(cbc_rating__isnull=True)
+			| Q(cbc_rating='')
+			| Q(mastery_status__isnull=True)
+			| Q(mastery_status='')
+		)
+		duplicate_results = (
+			results.values('learner_id', 'task_id')
+			.annotate(total=Count('id'))
+			.filter(total__gt=1)
+		)
+
+		validation['missing_count'] = missing_required_results.count()
+		validation['duplicate_count'] = duplicate_results.count()
+		validation['required_fields_ok'] = validation['missing_count'] == 0
+		validation['duplicate_ok'] = validation['duplicate_count'] == 0
+
+	total_results = results.count()
+	score_summary = results.aggregate(avg=Avg('score'), highest=Max('score'), lowest=Min('score'))
+	average_score = score_summary['avg'] or 0
+	highest_score = score_summary['highest']
+	lowest_score = score_summary['lowest']
+
 	competencies = Competency.objects.all().order_by('competency_code')
+	rating_choices = (
+		AssessmentResult.objects.exclude(cbc_rating__isnull=True)
+		.exclude(cbc_rating='')
+		.values_list('cbc_rating', flat=True)
+		.distinct()
+		.order_by('cbc_rating')
+	)
 
 	return render(
 		request,
 		'core/report.html',
 		{
 			'results': results,
-			'summary': summary,
-			'class_choices': class_choices,
+			'learners': learners,
+			'selected_learner': selected_learner,
+			'view_requested': view_requested,
+			'total_results': total_results,
+			'average_score': average_score,
+			'highest_score': highest_score,
+			'lowest_score': lowest_score,
+			'validation': validation,
 			'competencies': competencies,
-			'selected_class': class_filter,
+			'selected_learner_id': learner_filter,
 			'selected_competency': competency_filter,
 			'selected_rating': rating_filter,
+			'rating_choices': rating_choices,
 		},
 	)
 

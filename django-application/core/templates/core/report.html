@@ -2,19 +2,26 @@
 {% block title %}Reports{% endblock %}
 {% block content %}
 <section class="panel">
-    <h2>Performance Reports</h2>
+    <div class="panel-header form-header">
+        <div>
+            <p class="section-kicker">Teacher Reports</p>
+            <h2>View Learner Performance Report</h2>
+            <p>View assessment results for a specific learner.</p>
+        </div>
+        <a href="{% url 'report_view' %}" class="btn btn-secondary">Reset</a>
+    </div>
     <form method="get" class="filters">
         <div>
-            <label for="class_name">Class</label>
-            <select id="class_name" name="class_name">
-                <option value="">All Classes</option>
-                {% for class_item in class_choices %}
-                    <option value="{{ class_item }}" {% if class_item == selected_class %}selected{% endif %}>{{ class_item }}</option>
+            <label for="learner">Select Learner</label>
+            <select id="learner" name="learner" required>
+                <option value="">Select learner</option>
+                {% for learner in learners %}
+                    <option value="{{ learner.id }}" {% if learner.id|stringformat:'s' == selected_learner_id %}selected{% endif %}>{{ learner.full_name }} ({{ learner.admission_number }})</option>
                 {% endfor %}
             </select>
         </div>
         <div>
-            <label for="competency">Competency</label>
+            <label for="competency">Filter by Competency</label>
             <select id="competency" name="competency">
                 <option value="">All Competencies</option>
                 {% for competency in competencies %}
@@ -23,67 +30,98 @@
             </select>
         </div>
         <div>
-            <label for="rating">Rating Contains</label>
-            <input id="rating" name="rating" value="{{ selected_rating }}" placeholder="e.g. Proficient">
+            <label for="rating">Filter by Rating</label>
+            <select id="rating" name="rating">
+                <option value="">All Ratings</option>
+                {% for rating in rating_choices %}
+                    <option value="{{ rating }}" {% if rating == selected_rating %}selected{% endif %}>{{ rating }}</option>
+                {% endfor %}
+            </select>
         </div>
-        <button class="btn" type="submit">Filter</button>
-        <a href="{% url 'report_view' %}" class="btn btn-secondary">Reset</a>
+        <div class="filters__actions">
+            <input type="hidden" name="view_report" value="1" />
+            <button class="btn" type="submit">View Report</button>
+        </div>
     </form>
+    {% if view_requested and not selected_learner %}
+    <div class="message error">
+        Select a learner to view the report.
+    </div>
+    {% endif %}
+</section>
+
+{% if selected_learner %}
+<section class="panel">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span>Total Results</span>
+            <strong>{{ total_results }}</strong>
+        </div>
+        <div class="stat-card">
+            <span>Average Score</span>
+            <strong>{{ average_score|floatformat:2 }}</strong>
+        </div>
+        <div class="stat-card">
+            <span>Highest Score</span>
+            <strong>{% if highest_score is not None %}{{ highest_score|floatformat:2 }}{% else %}-{% endif %}</strong>
+        </div>
+        <div class="stat-card">
+            <span>Lowest Score</span>
+            <strong>{% if lowest_score is not None %}{{ lowest_score|floatformat:2 }}{% else %}-{% endif %}</strong>
+        </div>
+    </div>
 </section>
 
 <section class="panel">
-    <h3>Summary by Competency</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Competency</th>
-                <th>Average Score</th>
-                <th>Total Results</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in summary %}
-                <tr>
-                    <td>{{ item.task__competency__competency_name }}</td>
-                    <td>{{ item.avg_score|floatformat:2 }}</td>
-                    <td>{{ item.total }}</td>
-                </tr>
-            {% empty %}
-                <tr><td colspan="3">No records found for selected filters.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <h3>Validation Status</h3>
+    <div class="report-alerts">
+        <div class="message {% if validation.required_fields_ok %}success{% else %}error{% endif %}">
+            <strong>Required Fields OK?</strong>
+            {% if validation.required_fields_ok %}
+                <p>OK - All scores, ratings, and mastery status values are filled.</p>
+            {% else %}
+                <p>Warning - {{ validation.missing_count }} result{{ validation.missing_count|pluralize }} missing Score, CBC Rating, or Mastery Status.</p>
+            {% endif %}
+        </div>
+        <div class="message {% if validation.duplicate_ok %}success{% else %}error{% endif %}">
+            <strong>Any duplicates?</strong>
+            {% if validation.duplicate_ok %}
+                <p>OK - No duplicate learner and task records found.</p>
+            {% else %}
+                <p>Warning - {{ validation.duplicate_count }} duplicate learner/task combination{{ validation.duplicate_count|pluralize }} found.</p>
+            {% endif %}
+        </div>
+    </div>
 </section>
 
 <section class="panel">
-    <h3>Detailed Results</h3>
+    <h3>Learner Results</h3>
     <table>
         <thead>
             <tr>
-                <th>Subject</th>
-                <th>Learner</th>
-                <th>Class</th>
                 <th>Task</th>
                 <th>Competency</th>
                 <th>Score</th>
-                <th>Rating</th>
+                <th>CBC Rating</th>
+                <th>Mastery Status</th>
+                <th>Feedback</th>
             </tr>
         </thead>
         <tbody>
             {% for result in results %}
                 <tr>
-                    <td>{{ result.task.subject.subject_name|default:'-' }}</td>
-                    <td>{{ result.learner.full_name }}</td>
-                    <td>{{ result.learner.class_name }}</td>
                     <td>{{ result.task.task_name }}</td>
                     <td>{{ result.task.competency.competency_name }}</td>
-                    <td>{{ result.score }}</td>
+                    <td>{{ result.score|floatformat:2 }}</td>
                     <td>{{ result.cbc_rating }}</td>
+                    <td>{{ result.mastery_status }}</td>
+                    <td>{{ result.feedback|default:'-' }}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="7">No results available.</td></tr>
+                <tr><td colspan="6">No results found for this learner.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 </section>
+{% endif %}
 {% endblock %}
