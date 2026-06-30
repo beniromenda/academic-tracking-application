@@ -385,8 +385,8 @@ def learner_list(request):
 	learners = LearnerProfile.objects.select_related('user_account__user', 'created_by').all()
 	if query:
 		learners = learners.filter(
-			full_name__icontains=query,
-		) | learners.filter(admission_number__icontains=query) | learners.filter(class_name__icontains=query)
+			Q(full_name__icontains=query) | Q(admission_number__icontains=query)
+		)
 	learners = learners.order_by('full_name')
 	return render(request, 'core/learner_list.html', {'learners': learners, 'query': query})
 
@@ -407,7 +407,7 @@ def learner_create(request):
 			return redirect('learner_list')
 	else:
 		form = LearnerProfileForm()
-	return render(request, 'core/form.html', {'form': form, 'title': 'Create Learner Profile'})
+	return render(request, 'core/learner_form.html', {'form': form, 'title': 'Create Learner Profile', 'submit_label': 'Save', 'cancel_url': 'learner_list'})
 
 
 @login_required
@@ -425,7 +425,7 @@ def learner_update(request, pk):
 			return redirect('learner_list')
 	else:
 		form = LearnerProfileForm(instance=learner)
-	return render(request, 'core/form.html', {'form': form, 'title': 'Update Learner Profile'})
+	return render(request, 'core/learner_form.html', {'form': form, 'title': 'Edit Learner Profile', 'submit_label': 'Save', 'cancel_url': 'learner_list'})
 
 
 @login_required
@@ -439,7 +439,7 @@ def learner_delete(request, pk):
 		learner.delete()
 		messages.success(request, 'Learner profile deleted successfully.')
 		return redirect('learner_list')
-	return render(request, 'core/confirm_delete.html', {'title': 'Delete Learner Profile', 'object': learner})
+	return render(request, 'core/learner_confirm_delete.html', {'object': learner})
 
 
 @login_required
@@ -447,8 +447,14 @@ def competency_list(request):
 	access_denied = _deny_if_not(_is_teacher_or_admin(request.user))
 	if access_denied:
 		return access_denied
+	query = request.GET.get('q', '').strip()
 	competencies = Competency.objects.select_related('created_by').all()
-	return render(request, 'core/competency_list.html', {'competencies': competencies})
+	if query:
+		competencies = competencies.filter(
+			Q(competency_code__icontains=query) | Q(competency_name__icontains=query)
+		)
+	competencies = competencies.order_by('competency_code')
+	return render(request, 'core/competency_list.html', {'competencies': competencies, 'query': query})
 
 
 @login_required
@@ -467,7 +473,7 @@ def competency_create(request):
 			return redirect('competency_list')
 	else:
 		form = CompetencyForm()
-	return render(request, 'core/form.html', {'form': form, 'title': 'Create Competency'})
+	return render(request, 'core/competency_form.html', {'form': form, 'title': 'Create Competency - Define Learning Outcome', 'submit_label': 'Save', 'cancel_url': 'competency_list'})
 
 
 @login_required
@@ -485,7 +491,7 @@ def competency_update(request, pk):
 			return redirect('competency_list')
 	else:
 		form = CompetencyForm(instance=competency)
-	return render(request, 'core/form.html', {'form': form, 'title': 'Update Competency'})
+	return render(request, 'core/competency_form.html', {'form': form, 'title': 'Edit Competency', 'submit_label': 'Save', 'cancel_url': 'competency_list'})
 
 
 @login_required
@@ -498,7 +504,7 @@ def competency_delete(request, pk):
 		competency.delete()
 		messages.success(request, 'Competency deleted successfully.')
 		return redirect('competency_list')
-	return render(request, 'core/confirm_delete.html', {'title': 'Delete Competency', 'object': competency})
+	return render(request, 'core/competency_confirm_delete.html', {'object': competency})
 
 
 @login_required

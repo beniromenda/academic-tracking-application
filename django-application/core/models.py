@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 class Subject(models.Model):
@@ -71,7 +72,8 @@ class LearnerProfile(models.Model):
 	full_name = models.CharField(max_length=100)
 	gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
 	class_name = models.CharField(max_length=50)
-	date_of_birth = models.DateField()
+	date_of_birth = models.DateField(null=True, blank=True)
+	created_at = models.DateTimeField(default=timezone.now, editable=False)
 
 	class Meta:
 		ordering = ['full_name']
@@ -83,8 +85,9 @@ class LearnerProfile(models.Model):
 class Competency(models.Model):
 	competency_code = models.CharField(max_length=20, unique=True)
 	competency_name = models.CharField(max_length=100)
-	description = models.TextField(blank=True)
+	learning_outcome = models.TextField()
 	created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_competencies')
+	created_at = models.DateTimeField(default=timezone.now, editable=False)
 
 	class Meta:
 		ordering = ['competency_code']

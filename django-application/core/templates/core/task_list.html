@@ -1,4 +1,5 @@
-{% extends 'core/base.html' %} {% block title %}Assessment Tasks{% endblock %}
+{% extends 'core/base.html' %}
+{% block title %}Assessment Tasks{% endblock %}
 {% block content %}
 <section class="panel">
   <h2>Assessment Tasks</h2>
@@ -20,8 +21,7 @@
         <td>{{ task.subject.subject_name|default:'-' }}</td>
         <td>{{ task.task_title }}</td>
         <td>
-          {{ task.competency.competency_code }} - {{
-          task.competency.competency_name }}
+          {{ task.competency.competency_code }} - {{ task.competency.competency_name }}
         </td>
         <td>{{ task.task_date }}</td>
         <td>{{ task.teacher.username }}</td>

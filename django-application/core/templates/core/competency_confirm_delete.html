@@ -1,0 +1,16 @@
+{% extends 'core/base.html' %}
+{% block title %}Delete Competency{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <h2>Delete Competency</h2>
+  <p>Are you sure you want to delete this competency?</p>
+  <p><strong>{{ object }}</strong></p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="actions">
+      <button type="submit" class="btn btn-danger">Yes</button>
+      <a href="{% url 'competency_list' %}" class="btn btn-secondary">No</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -166,39 +166,73 @@ class UserAccountUpdateForm(forms.Form):
 class LearnerProfileForm(forms.ModelForm):
     class Meta:
         model = LearnerProfile
-        fields = ['user_account', 'admission_number', 'full_name', 'gender', 'class_name', 'date_of_birth']
+        fields = ['admission_number', 'full_name', 'gender', 'class_name']
+        labels = {
+            'admission_number': 'Admission Number',
+            'full_name': 'Full Name',
+            'gender': 'Gender',
+            'class_name': 'Class Name',
+        }
         widgets = {
-            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'admission_number': forms.TextInput(attrs={'placeholder': 'Admission number'}),
+            'full_name': forms.TextInput(attrs={'placeholder': 'Full name'}),
+            'class_name': forms.TextInput(attrs={'placeholder': 'Class 7A'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        qs = UserAccount.objects.filter(role=UserAccount.ROLE_LEARNER, status=UserAccount.STATUS_ACTIVE)
-        if self.instance and self.instance.pk:
-            qs = qs | UserAccount.objects.filter(pk=self.instance.user_account_id)
-        self.fields['user_account'].queryset = qs.distinct()
-        self.fields['user_account'].required = False
-        self.fields['user_account'].help_text = (
-            'Optional. Link this learner to an existing learner account. '
-            'Leave blank if no learner account has been created yet.'
-        )
 
-    def clean_user_account(self):
-        user_account = self.cleaned_data.get('user_account')
-        if not user_account:
-            return None
-        existing = LearnerProfile.objects.filter(user_account=user_account)
+    def clean_admission_number(self):
+        admission_number = self.cleaned_data['admission_number'].strip()
+        existing = LearnerProfile.objects.filter(admission_number__iexact=admission_number)
         if self.instance.pk:
             existing = existing.exclude(pk=self.instance.pk)
         if existing.exists():
-            raise forms.ValidationError('This learner user account already has a profile.')
-        return user_account
+            raise forms.ValidationError('This admission number is already in use.')
+        return admission_number
+
+    def clean_full_name(self):
+        return self.cleaned_data['full_name'].strip()
+
+    def clean_class_name(self):
+        return self.cleaned_data['class_name'].strip()
 
 
 class CompetencyForm(forms.ModelForm):
     class Meta:
         model = Competency
-        fields = ['competency_code', 'competency_name', 'description']
+        fields = ['competency_code', 'competency_name', 'learning_outcome']
+        labels = {
+            'competency_code': 'Competency Code',
+            'competency_name': 'Competency Name',
+            'learning_outcome': 'Learning Outcome',
+        }
+        widgets = {
+            'competency_code': forms.TextInput(attrs={'placeholder': 'MATH-001'}),
+            'competency_name': forms.TextInput(attrs={'placeholder': 'Number Sense'}),
+            'learning_outcome': forms.Textarea(attrs={'rows': 5, 'placeholder': 'Describe what learners should be able to do'}),
+        }
+
+    def clean_competency_code(self):
+        competency_code = self.cleaned_data['competency_code'].strip()
+        existing = Competency.objects.filter(competency_code__iexact=competency_code)
+        if self.instance.pk:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise forms.ValidationError('Competency code must be unique.')
+        return competency_code
+
+    def clean_competency_name(self):
+        competency_name = self.cleaned_data['competency_name'].strip()
+        if not competency_name:
+            raise forms.ValidationError('Competency name is required.')
+        return competency_name
+
+    def clean_learning_outcome(self):
+        learning_outcome = self.cleaned_data['learning_outcome'].strip()
+        if len(learning_outcome) < 10:
+            raise forms.ValidationError('Learning Outcome must be at least 10 characters long.')
+        return learning_outcome
 
 
 class AssessmentTaskForm(forms.ModelForm):

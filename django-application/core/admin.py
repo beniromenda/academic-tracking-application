@@ -19,8 +19,8 @@ class LearnerProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Competency)
 class CompetencyAdmin(admin.ModelAdmin):
-	list_display = ('competency_code', 'competency_name', 'created_by')
-	search_fields = ('competency_code', 'competency_name')
+	list_display = ('competency_code', 'competency_name', 'created_by', 'created_at')
+	search_fields = ('competency_code', 'competency_name', 'learning_outcome')
 
 
 @admin.register(AssessmentTask)

@@ -1,91 +1,63 @@
-{% load static role_tags %}
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Learners</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}" />
-  </head>
-  <body>
-    <header class="topbar">
-      <h1>Academic Tracking Application</h1>
-      <nav>
-        <a href="{% url 'dashboard' %}">Dashboard</a>
-        <a href="{% url 'learner_list' %}">Learners</a>
-        <a href="{% url 'competency_list' %}">Competencies</a>
-        <a href="{% url 'task_list' %}">Tasks</a>
-        <a href="{% url 'result_list' %}">Results</a>
-        <a href="{% url 'report_view' %}">Reports</a>
-        <a href="{% url 'feedback_view' %}">Feedback</a>
-        {% if show_subject_switch %}
-        <a href="{% url 'subject_select' %}">Select Subject</a>
-        {% endif %} {% if user|can_manage_users %}
-        <a href="{% url 'subject_list' %}">Subjects</a>
-        <a href="{% url 'user_list' %}">Users</a>
-        {% endif %}
-      </nav>
-    </header>
-
-    <main class="container">
-      {% if active_subject %}
-      <section class="panel">
-        <p>
-          Active subject: <strong>{{ active_subject.subject_name }}</strong>
-        </p>
-      </section>
-      {% endif %}
-      <section class="panel">
-        <h2>Learners</h2>
-        <form method="get" class="filters">
-          <div>
-            <label for="q">Search</label>
-            <input
-              id="q"
-              name="q"
-              value="{{ query }}"
-              placeholder="Admission, name, or class"
-            />
-          </div>
-          <button type="submit" class="btn">Search</button>
-          <a class="btn btn-secondary" href="{% url 'learner_list' %}">Reset</a>
-        </form>
-
-        <a class="btn" href="{% url 'learner_create' %}">Create Learner</a>
-        <table>
-          <thead>
-            <tr>
-              <th>Admission No</th>
-              <th>Full Name</th>
-              <th>Gender</th>
-              <th>Class</th>
-              <th>Date of Birth</th>
-              <th>Created By</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for learner in learners %}
-            <tr>
-              <td>{{ learner.admission_number }}</td>
-              <td>{{ learner.full_name }}</td>
-              <td>{{ learner.gender }}</td>
-              <td>{{ learner.class_name }}</td>
-              <td>{{ learner.date_of_birth }}</td>
-              <td>{{ learner.created_by.username|default:'-' }}</td>
-              <td>
-                <a href="{% url 'learner_update' learner.id %}">Edit</a> |
-                <a href="{% url 'learner_delete' learner.id %}">Delete</a>
-              </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="7">No learners found.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </section>
-    </main>
-  </body>
-</html>
+{% extends 'core/base.html' %}
+{% block title %}Learners{% endblock %}
+{% block content %}
+{% if active_subject %}
+<section class="panel">
+  <p>
+    Active subject: <strong>{{ active_subject.subject_name }}</strong>
+  </p>
+</section>
+{% endif %}
+<section class="panel">
+  <div class="panel-header form-header">
+    <div>
+      <p class="section-kicker">Teacher Learner Management</p>
+      <h2>Manage Learner Records</h2>
+      <p>Click Create to add new learner.</p>
+    </div>
+    <a class="btn" href="{% url 'learner_create' %}">Create Learner</a>
+  </div>
+  <form method="get" class="filters">
+    <div>
+      <label for="q">Search</label>
+      <input
+        id="q"
+        name="q"
+        value="{{ query }}"
+        placeholder="Search by admission number or name"
+      />
+    </div>
+    <button type="submit" class="btn">Search</button>
+    <a class="btn btn-secondary" href="{% url 'learner_list' %}">Clear</a>
+  </form>
+  <table>
+    <thead>
+      <tr>
+        <th>Admission Number</th>
+        <th>Full Name</th>
+        <th>Gender</th>
+        <th>Class</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for learner in learners %}
+      <tr>
+        <td>{{ learner.admission_number }}</td>
+        <td>{{ learner.full_name }}</td>
+        <td>{{ learner.gender }}</td>
+        <td>{{ learner.class_name }}</td>
+        <td>
+          <a class="action-pill action-pill--edit" href="{% url 'learner_update' learner.id %}">Edit</a>
+          <a class="action-pill action-pill--deactivate" href="{% url 'learner_delete' learner.id %}">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5">No learners found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -22,23 +22,26 @@
           <div class="sidebar__group">
             <span class="sidebar__group-label">Main</span>
             <a class="sidebar__link {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}" href="{% url 'dashboard' %}">Dashboard</a>
-            {% if role != 'Administrator' %}
-            <a class="sidebar__link {% if request.resolver_match.url_name == 'learner_list' %}is-active{% endif %}" href="{% url 'learner_list' %}">Learners</a>
-            {% endif %}
           </div>
 
           {% if role == 'Teacher' %}
           <div class="sidebar__group">
-            <span class="sidebar__group-label">Manage</span>
+            <span class="sidebar__group-label">Teacher</span>
+            <a class="sidebar__link {% if request.resolver_match.url_name == 'learner_list' %}is-active{% endif %}" href="{% url 'learner_list' %}">Manage Learners</a>
             <a class="sidebar__link {% if request.resolver_match.url_name == 'competency_list' %}is-active{% endif %}" href="{% url 'competency_list' %}">Competencies</a>
             <a class="sidebar__link {% if request.resolver_match.url_name == 'task_list' %}is-active{% endif %}" href="{% url 'task_list' %}">Tasks</a>
             <a class="sidebar__link {% if request.resolver_match.url_name == 'result_list' %}is-active{% endif %}" href="{% url 'result_list' %}">Results</a>
-          </div>
-
-          <div class="sidebar__group">
-            <span class="sidebar__group-label">Reports</span>
             <a class="sidebar__link {% if request.resolver_match.url_name == 'report_view' %}is-active{% endif %}" href="{% url 'report_view' %}">Reports</a>
-            <a class="sidebar__link {% if request.resolver_match.url_name == 'feedback_view' %}is-active{% endif %}" href="{% url 'feedback_view' %}">Feedback</a>
+            {% if show_subject_switch %}
+            <a class="sidebar__link {% if request.resolver_match.url_name == 'subject_select' %}is-active{% endif %}" href="{% url 'subject_select' %}">Select Subject</a>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          {% if role == 'Learner' %}
+          <div class="sidebar__group">
+            <span class="sidebar__group-label">Learner</span>
+            <a class="sidebar__link {% if request.resolver_match.url_name == 'feedback_view' %}is-active{% endif %}" href="{% url 'feedback_view' %}">My Feedback</a>
           </div>
           {% endif %}
 
