@@ -20,7 +20,7 @@ from .forms import (
 	UserAccountCreateForm,
 	UserAccountUpdateForm,
 )
-from .models import AssessmentResult, AssessmentTask, Competency, LearnerProfile, Subject, UserAccount
+from .models import AssessmentResult, AssessmentTask, Competency, LearnerProfile, LearnerReportFeedback, Subject, UserAccount
 
 
 ACTIVE_SUBJECT_SESSION_KEY = 'active_subject_id'
@@ -64,6 +64,18 @@ def _deny_if_not(condition):
 	if not condition:
 		return HttpResponseForbidden('You are not allowed to access this page.')
 	return None
+
+
+def _cbc_rating_from_average(score):
+	if score is None:
+		return '-'
+	if score >= 80:
+		return 'Exceeding Expectations'
+	if score >= 60:
+		return 'Meeting Expectations'
+	if score >= 40:
+		return 'Approaching Expectations'
+	return 'Below Expectations'
 
 
 def _teacher_subjects(user):
@@ -769,33 +781,47 @@ def report_view(request):
 	access_denied = _deny_if_not(_is_teacher_or_admin(request.user))
 	if access_denied:
 		return access_denied
+	active_subject = _active_subject_for_request(request)
 
-	learner_filter = request.GET.get('learner', '').strip()
-	competency_filter = request.GET.get('competency', '').strip()
-	view_requested = request.GET.get('view_report') == '1'
+	selected_learner_id = request.POST.get('learner') if request.method == 'POST' else request.GET.get('learner', '').strip()
+	selected_competency_id = request.POST.get('competency') if request.method == 'POST' else request.GET.get('competency', '').strip()
+	view_requested = request.POST.get('view_report') == '1' if request.method == 'POST' else request.GET.get('view_report') == '1'
 
 	learners = LearnerProfile.objects.order_by('full_name')
+	competencies = Competency.objects.order_by('competency_code')
+	if active_subject:
+		competencies = competencies.filter(tasks__subject=active_subject).distinct()
+
+	selected_learner = learners.filter(pk=selected_learner_id).first() if selected_learner_id else None
+	selected_competency = competencies.filter(pk=selected_competency_id).first() if selected_competency_id else None
+
 	results = AssessmentResult.objects.none()
-	selected_learner = None
-	term_results = AssessmentResult.objects.none()
+	report_feedback = None
+	report_already_saved = False
+	teacher_feedback_text = ''
 	validation = {
 		'required_fields_ok': True,
 		'duplicate_ok': True,
 		'missing_count': 0,
 		'duplicate_count': 0,
 	}
+	total_results = 0
+	term_average_score = 0
+	highest_score = None
+	lowest_score = None
+	rating_breakdown = []
+	average_cbc_rating = '-'
 
-	if learner_filter:
-		selected_learner = learners.filter(pk=learner_filter).first()
-
-	if selected_learner:
-		term_results = AssessmentResult.objects.select_related('learner', 'task', 'task__competency', 'created_by').filter(learner=selected_learner)
-		results = term_results
-		if competency_filter:
-			results = results.filter(task__competency__id=competency_filter)
+	if selected_learner and selected_competency:
+		results = AssessmentResult.objects.select_related('learner', 'task', 'task__competency', 'created_by').filter(
+			learner=selected_learner,
+			task__competency=selected_competency,
+		)
+		if active_subject:
+			results = results.filter(task__subject=active_subject)
 		results = results.order_by('task__task_name')
 
-		missing_required_results = term_results.filter(
+		missing_required_results = results.filter(
 			Q(score__isnull=True)
 			| Q(cbc_rating__isnull=True)
 			| Q(cbc_rating='')
@@ -803,7 +829,7 @@ def report_view(request):
 			| Q(mastery_status='')
 		)
 		duplicate_results = (
-			term_results.values('learner_id', 'task_id')
+			results.values('learner_id', 'task_id')
 			.annotate(total=Count('id'))
 			.filter(total__gt=1)
 		)
@@ -813,42 +839,60 @@ def report_view(request):
 		validation['required_fields_ok'] = validation['missing_count'] == 0
 		validation['duplicate_ok'] = validation['duplicate_count'] == 0
 
-	total_results = term_results.count()
-	score_summary = term_results.aggregate(avg=Avg('score'), highest=Max('score'), lowest=Min('score'))
-	term_average_score = score_summary['avg'] or 0
-	highest_score = score_summary['highest']
-	lowest_score = score_summary['lowest']
+		total_results = results.count()
+		score_summary = results.aggregate(avg=Avg('score'), highest=Max('score'), lowest=Min('score'))
+		term_average_score = score_summary['avg'] or 0
+		highest_score = score_summary['highest']
+		lowest_score = score_summary['lowest']
+		average_cbc_rating = _cbc_rating_from_average(score_summary['avg'])
 
-	competencies = Competency.objects.all().order_by('competency_code')
-	rating_choices = []
-
-	competency_summary = []
-	rating_breakdown = []
-	if selected_learner:
-		used_competency_ids = term_results.values_list('task__competency_id', flat=True).distinct()
 		rating_choices = (
-			term_results.exclude(cbc_rating__isnull=True)
+			results.exclude(cbc_rating__isnull=True)
 			.exclude(cbc_rating='')
 			.values_list('cbc_rating', flat=True)
 			.distinct()
 			.order_by('cbc_rating')
 		)
-		for competency in competencies:
-			if competency.id not in used_competency_ids:
-				continue
-			competency_results = term_results.filter(task__competency=competency)
-			summary = competency_results.aggregate(avg=Avg('score'), total=Count('id'))
-			competency_summary.append({
-				'competency': competency,
-				'total_tasks': summary['total'] or 0,
-				'average_score': summary['avg'] or 0,
-			})
-
 		for rating in rating_choices:
-			rating_breakdown.append({
-				'rating': rating,
-				'count': term_results.filter(cbc_rating=rating).count(),
-			})
+			rating_breakdown.append({'rating': rating, 'count': results.filter(cbc_rating=rating).count()})
+
+		report_feedback = LearnerReportFeedback.objects.filter(
+			learner=selected_learner,
+			competency=selected_competency,
+		).prefetch_related('assessment_results').first()
+		if report_feedback:
+			report_already_saved = True
+			teacher_feedback_text = report_feedback.feedback
+
+	if request.method == 'POST' and request.POST.get('save_report') == '1':
+		view_requested = True
+		teacher_feedback_text = request.POST.get('teacher_feedback', '').strip()
+		if not selected_learner or not selected_competency:
+			messages.error(request, 'Select a learner and competency before saving the report.')
+		elif not teacher_feedback_text:
+			messages.error(request, 'Teacher feedback is required before saving the report.')
+		elif not results.exists():
+			messages.error(request, 'No assessment results found for the selected learner and competency.')
+		else:
+			status_counts = (
+				results.values('mastery_status')
+				.annotate(total=Count('id'))
+				.order_by('-total', 'mastery_status')
+			)
+			overall_status = status_counts[0]['mastery_status'] if status_counts else AssessmentResult.MASTERY_DEVELOPING
+			report_feedback, _ = LearnerReportFeedback.objects.update_or_create(
+				learner=selected_learner,
+				competency=selected_competency,
+				defaults={
+					'teacher': request.user,
+					'feedback': teacher_feedback_text,
+					'overall_competency_status': overall_status,
+					'is_available_for_learner': True,
+				},
+			)
+			report_feedback.assessment_results.set(results)
+			messages.success(request, 'Report saved successfully.')
+			return redirect(f"{reverse('report_view')}?learner={selected_learner.id}&competency={selected_competency.id}&view_report=1")
 
 	return render(
 		request,
@@ -864,10 +908,14 @@ def report_view(request):
 			'lowest_score': lowest_score,
 			'validation': validation,
 			'competencies': competencies,
-			'selected_learner_id': learner_filter,
-			'selected_competency': competency_filter,
-			'competency_summary': competency_summary,
+			'selected_learner_id': selected_learner_id,
+			'selected_competency': selected_competency_id,
+			'selected_competency_obj': selected_competency,
+			'teacher_feedback_text': teacher_feedback_text,
+			'report_feedback': report_feedback,
+			'report_already_saved': report_already_saved,
 			'rating_breakdown': rating_breakdown,
+			'average_cbc_rating': average_cbc_rating,
 		},
 	)
 

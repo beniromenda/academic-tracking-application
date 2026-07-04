@@ -150,3 +150,28 @@ class AssessmentResult(models.Model):
 
 	def __str__(self):
 		return f'{self.learner.full_name} - {self.task.task_name} ({self.score})'
+
+
+class LearnerReportFeedback(models.Model):
+	learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name='report_feedbacks')
+	competency = models.ForeignKey(Competency, on_delete=models.CASCADE, related_name='report_feedbacks')
+	teacher = models.ForeignKey(User, on_delete=models.PROTECT, related_name='written_report_feedbacks')
+	feedback = models.TextField()
+	overall_competency_status = models.CharField(
+		max_length=50,
+		choices=AssessmentResult.MASTERY_STATUS_CHOICES,
+		default=AssessmentResult.MASTERY_DEVELOPING,
+	)
+	assessment_results = models.ManyToManyField(AssessmentResult, blank=True, related_name='saved_report_feedbacks')
+	is_available_for_learner = models.BooleanField(default=False)
+	created_at = models.DateTimeField(default=timezone.now, editable=False)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ['-updated_at']
+		constraints = [
+			models.UniqueConstraint(fields=['learner', 'competency'], name='unique_learner_competency_report_feedback'),
+		]
+
+	def __str__(self):
+		return f'Report: {self.learner.full_name} - {self.competency.competency_code}'
