@@ -310,14 +310,13 @@ class AssessmentResultForm(forms.ModelForm):
 
     class Meta:
         model = AssessmentResult
-        fields = ['learner', 'task', 'score', 'cbc_rating', 'mastery_status', 'feedback']
+        fields = ['learner', 'task', 'score', 'cbc_rating', 'mastery_status']
         labels = {
             'cbc_rating': 'CBC Rating',
             'mastery_status': 'Mastery Status',
         }
         widgets = {
             'cbc_rating': forms.Select(choices=CBC_RATING_CHOICES),
-            'feedback': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Teacher feedback'}),
         }
 
     def clean(self):
@@ -337,13 +336,6 @@ class AssessmentResultForm(forms.ModelForm):
         if not cbc_rating:
             raise forms.ValidationError('CBC Rating is required.')
         return cbc_rating
-
-    def clean_feedback(self):
-        feedback = self.cleaned_data['feedback'].strip()
-        if not feedback:
-            raise forms.ValidationError('Feedback is required.')
-        return feedback
-
 
 class BulkAssessmentResultEntryForm(forms.Form):
     task_id = forms.IntegerField(widget=forms.HiddenInput())

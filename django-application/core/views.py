@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -630,18 +631,49 @@ def result_create(request):
 	if access_denied:
 		return access_denied
 	active_subject = _active_subject_for_request(request)
+	selected_learner_id = request.POST.get('learner') if request.method == 'POST' else request.GET.get('learner', '').strip()
+	selected_task_id = request.POST.get('task') if request.method == 'POST' else request.GET.get('task', '').strip()
+	selected_learner = LearnerProfile.objects.filter(pk=selected_learner_id).first() if selected_learner_id else None
+	selected_task = AssessmentTask.objects.select_related('competency', 'subject').filter(pk=selected_task_id).first() if selected_task_id else None
+	if active_subject:
+		if selected_task and selected_task.subject_id != active_subject.id:
+			selected_task = None
+		if request.method != 'POST' and (not selected_learner or not selected_task):
+			return redirect('result_bulk_entry')
+	if request.method != 'POST' and (not selected_learner or not selected_task):
+		return redirect('result_bulk_entry')
 
 	if request.method == 'POST':
 		form = AssessmentResultForm(request.POST, active_subject=active_subject)
+		form.fields['learner'].widget = forms.HiddenInput()
+		form.fields['task'].widget = forms.HiddenInput()
 		if form.is_valid():
 			result = form.save(commit=False)
 			result.created_by = request.user
+			result.feedback = result.feedback or ''
 			result.save()
 			messages.success(request, 'Assessment result recorded successfully.')
 			return redirect('result_list')
 	else:
-		form = AssessmentResultForm(active_subject=active_subject)
-	return render(request, 'core/result_form.html', {'form': form, 'title': 'Record Assessment Result', 'submit_label': 'Save', 'cancel_url': 'result_list'})
+		form = AssessmentResultForm(active_subject=active_subject, initial={'learner': selected_learner.id if selected_learner else None, 'task': selected_task.id if selected_task else None})
+		form.fields['learner'].widget = forms.HiddenInput()
+		form.fields['task'].widget = forms.HiddenInput()
+		if selected_learner:
+			form.fields['learner'].initial = selected_learner.pk
+		if selected_task:
+			form.fields['task'].initial = selected_task.pk
+	return render(
+		request,
+		'core/result_form.html',
+		{
+			'form': form,
+			'title': 'Record Assessment Result',
+			'submit_label': 'Save Result',
+			'cancel_url': 'result_list',
+			'selected_learner': selected_learner,
+			'selected_task': selected_task,
+		},
+	)
 
 
 @login_required
@@ -656,15 +688,31 @@ def result_update(request, pk):
 	result = get_object_or_404(AssessmentResult, **result_filters)
 	if request.method == 'POST':
 		form = AssessmentResultForm(request.POST, instance=result, active_subject=active_subject)
+		form.fields['learner'].widget = forms.HiddenInput()
+		form.fields['task'].widget = forms.HiddenInput()
 		if form.is_valid():
 			updated = form.save(commit=False)
 			updated.created_by = request.user
+			updated.feedback = updated.feedback or result.feedback or ''
 			updated.save()
 			messages.success(request, 'Assessment result updated successfully.')
 			return redirect('result_list')
 	else:
 		form = AssessmentResultForm(instance=result, active_subject=active_subject)
-	return render(request, 'core/result_form.html', {'form': form, 'title': 'Edit Assessment Result', 'submit_label': 'Save', 'cancel_url': 'result_list'})
+		form.fields['learner'].widget = forms.HiddenInput()
+		form.fields['task'].widget = forms.HiddenInput()
+	return render(
+		request,
+		'core/result_form.html',
+		{
+			'form': form,
+			'title': 'Edit Assessment Result',
+			'submit_label': 'Save Result',
+			'cancel_url': 'result_list',
+			'selected_learner': result.learner,
+			'selected_task': result.task,
+		},
+	)
 
 
 @login_required
@@ -692,77 +740,26 @@ def result_bulk_entry(request):
 
 	active_subject = _active_subject_for_request(request)
 	learners = LearnerProfile.objects.order_by('full_name')
-	competencies = Competency.objects.all().order_by('competency_code')
-	selected_learner_id = request.POST.get('learner') if request.method == 'POST' else request.GET.get('learner', '').strip()
-	selected_competency_id = request.POST.get('competency') if request.method == 'POST' else request.GET.get('competency', '').strip()
-	selected_learner = learners.filter(pk=selected_learner_id).first() if selected_learner_id else None
-	selected_competency = competencies.filter(pk=selected_competency_id).first() if selected_competency_id else None
 	tasks = AssessmentTask.objects.select_related('competency', 'subject').all()
 	if active_subject:
 		tasks = tasks.filter(subject=active_subject)
-	if selected_competency:
-		tasks = tasks.filter(competency=selected_competency)
 	tasks = tasks.order_by('task_name')
-	task_map = {task.id: task for task in tasks}
-	ResultEntryFormSet = formset_factory(BulkAssessmentResultEntryForm, extra=0)
-	formset = None
-	task_entries = []
-	if selected_learner and selected_competency:
-		initial = []
-		for task in tasks:
-			existing = AssessmentResult.objects.filter(learner=selected_learner, task=task).first()
-			initial.append({
-				'task_id': task.id,
-				'score': existing.score if existing else None,
-				'cbc_rating': existing.cbc_rating if existing else '',
-				'mastery_status': existing.mastery_status if existing else AssessmentResult.MASTERY_DEVELOPING,
-				'feedback': existing.feedback if existing else '',
-			})
-		if request.method == 'POST':
-			formset = ResultEntryFormSet(request.POST)
-			if formset.is_valid():
-				with transaction.atomic():
-					for form in formset:
-						cleaned = form.cleaned_data
-						task = task_map.get(cleaned['task_id'])
-						if not task:
-							continue
-						result, _ = AssessmentResult.objects.get_or_create(
-							learner=selected_learner,
-							task=task,
-							defaults={
-								'created_by': request.user,
-								'score': cleaned['score'],
-								'cbc_rating': cleaned['cbc_rating'],
-								'mastery_status': cleaned['mastery_status'],
-								'feedback': cleaned['feedback'],
-							},
-						)
-						result.created_by = request.user
-						result.score = cleaned['score']
-						result.cbc_rating = cleaned['cbc_rating']
-						result.mastery_status = cleaned['mastery_status']
-						result.feedback = cleaned['feedback']
-						result.save()
-			messages.success(request, 'All task results recorded successfully.')
-			return redirect('result_list')
-		else:
-			formset = ResultEntryFormSet(initial=initial)
-		task_entries = list(zip(tasks, formset.forms))
+	selected_learner_id = request.GET.get('learner', '').strip()
+	selected_task_id = request.GET.get('task', '').strip()
+	selected_learner = learners.filter(pk=selected_learner_id).first() if selected_learner_id else None
+	selected_task = tasks.filter(pk=selected_task_id).first() if selected_task_id else None
 
 	return render(
 		request,
 		'core/bulk_result_entry.html',
 		{
 			'learners': learners,
-			'competencies': competencies,
+			'competencies': Competency.objects.order_by('competency_code'),
 			'selected_learner': selected_learner,
 			'selected_learner_id': selected_learner_id,
-			'selected_competency': selected_competency,
-			'selected_competency_id': selected_competency_id,
 			'tasks': tasks,
-			'formset': formset,
-			'task_entries': task_entries,
+			'selected_task': selected_task,
+			'selected_task_id': selected_task_id,
 		},
 	)
 

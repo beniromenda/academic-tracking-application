@@ -338,10 +338,9 @@
     <div class="results-hero__copy">
       <p class="results-hero__eyebrow">Teacher Result Management</p>
       <h2>Manage Assessment Results</h2>
-      <p>Record and review learner performance for each task, with scores, ratings, mastery status, and feedback in one place.</p>
+      <p>Record and review learner performance for each task, with scores, CBC ratings, and mastery status in one place.</p>
       <div class="results-hero__actions">
-        <a class="results-create-btn" href="{% url 'result_bulk_entry' %}">+ Record Term Results</a>
-        <a class="results-btn-link" href="{% url 'result_create' %}">Single Result</a>
+        <a class="results-create-btn" href="{% url 'result_bulk_entry' %}">+ Record Result</a>
       </div>
     </div>
     <div class="results-hero__art" aria-hidden="true">
@@ -385,7 +384,6 @@
               <th>Score</th>
               <th>CBC Rating</th>
               <th>Mastery Status</th>
-              <th>Feedback</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -397,7 +395,6 @@
               <td>{{ result.score }}</td>
               <td>{{ result.cbc_rating }}</td>
               <td>{{ result.mastery_status }}</td>
-              <td>{{ result.feedback|default:'-' }}</td>
               <td>
                 <a class="result-action result-action--edit" href="{% url 'result_update' result.id %}">Edit</a>
                 <a class="result-action result-action--delete" href="{% url 'result_delete' result.id %}">Delete</a>

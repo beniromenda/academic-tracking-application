@@ -124,6 +124,27 @@
     gap: 1rem;
   }
 
+  .result-form-summary {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid #e3ebf7;
+    border-radius: 16px;
+    background: #fbfdff;
+  }
+
+  .result-form-summary__item {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: #20385f;
+  }
+
+  .result-form-summary__item strong {
+    color: #10264c;
+  }
+
   @media (max-width: 820px) {
     .result-form-hero {
       flex-direction: column;
@@ -154,7 +175,7 @@
     <div class="result-form-hero__copy">
       <p class="result-form-hero__eyebrow">Teacher Result Management</p>
       <h2>{{ title }}</h2>
-      <p>Enter the learner result, CBC rating, mastery status, and feedback in a centered record form.</p>
+      <p>Enter the score, CBC rating, and mastery status for the selected learner and task.</p>
     </div>
     <div class="result-form-hero__art" aria-hidden="true"></div>
   </section>
@@ -169,6 +190,31 @@
 
     <form method="post" class="form-stack">
       {% csrf_token %}
+
+      {% for hidden_field in form.hidden_fields %}
+      {{ hidden_field }}
+      {% endfor %}
+
+      {% if selected_learner or selected_task %}
+      <div class="result-form-summary">
+        {% if selected_learner %}
+        <div class="result-form-summary__item">
+          <span>Learner</span>
+          <strong>{{ selected_learner.full_name }}</strong>
+        </div>
+        {% endif %}
+        {% if selected_task %}
+        <div class="result-form-summary__item">
+          <span>Task</span>
+          <strong>{{ selected_task.task_name }}</strong>
+        </div>
+        <div class="result-form-summary__item">
+          <span>Competency</span>
+          <strong>{{ selected_task.competency.competency_name }}</strong>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
 
       {% if form.non_field_errors %}
       <div class="message error">{{ form.non_field_errors }}</div>
@@ -190,7 +236,7 @@
       </div>
 
       <div class="actions form-actions">
-        <button type="submit" class="btn">{{ submit_label|default:'Save' }}</button>
+        <button type="submit" class="btn">{{ submit_label|default:'Save Result' }}</button>
         <a href="{% url cancel_url|default:'result_list' %}" class="btn btn-secondary">Cancel</a>
       </div>
     </form>
