@@ -468,7 +468,7 @@ class AssessmentTaskForm(forms.ModelForm):
 
 
 class AssessmentResultForm(forms.ModelForm):
-    def __init__(self, *args, active_subject=None, current_user=None, **kwargs):
+    def __init__(self, *args, active_subject=None, current_user=None, teacher_learner_record=None, **kwargs):
         super().__init__(*args, **kwargs)
         learner_records = TeacherLearnerRecord.objects.select_related('learner_profile').order_by('learner_profile__full_name')
         tasks = AssessmentTask.objects.select_related('competency').order_by('task_name')
@@ -480,11 +480,33 @@ class AssessmentResultForm(forms.ModelForm):
                 tasks = tasks | AssessmentTask.objects.filter(pk=self.instance.task_id)
         self.fields['teacher_learner_record'].queryset = learner_records.distinct()
         self.fields['teacher_learner_record'].label = 'Learner'
+
+        selected_record_id = None
+        if teacher_learner_record is not None:
+            selected_record_id = teacher_learner_record.pk if hasattr(teacher_learner_record, 'pk') else teacher_learner_record
+        elif self.is_bound:
+            selected_record_id = self.data.get('teacher_learner_record')
+        elif self.initial.get('teacher_learner_record'):
+            selected_record_id = self.initial.get('teacher_learner_record')
+        elif self.instance and self.instance.pk:
+            selected_record_id = self.instance.teacher_learner_record_id
+
+        if selected_record_id:
+            assigned_competency_ids = TeacherLearnerCompetencyAssignment.objects.filter(
+                teacher_learner_record_id=selected_record_id
+            ).values_list('competency_id', flat=True)
+            tasks = tasks.filter(competency_id__in=assigned_competency_ids)
+
         self.fields['task'].queryset = tasks.distinct()
         if active_subject:
             tasks = AssessmentTask.objects.filter(subject=active_subject)
             if current_user and hasattr(current_user, 'account') and getattr(current_user.account, 'role', None) == UserAccount.ROLE_TEACHER:
                 tasks = tasks.filter(created_by=current_user)
+            if selected_record_id:
+                assigned_competency_ids = TeacherLearnerCompetencyAssignment.objects.filter(
+                    teacher_learner_record_id=selected_record_id
+                ).values_list('competency_id', flat=True)
+                tasks = tasks.filter(competency_id__in=assigned_competency_ids)
             if self.instance and self.instance.pk:
                 tasks = tasks | AssessmentTask.objects.filter(pk=self.instance.task_id)
             self.fields['task'].queryset = tasks.distinct()
@@ -504,6 +526,15 @@ class AssessmentResultForm(forms.ModelForm):
         cleaned_data = super().clean()
         teacher_learner_record = cleaned_data.get('teacher_learner_record')
         task = cleaned_data.get('task')
+        if task and not teacher_learner_record:
+            raise forms.ValidationError('Learner record must be selected before choosing a task.')
+        if teacher_learner_record and task:
+            is_assigned = TeacherLearnerCompetencyAssignment.objects.filter(
+                teacher_learner_record=teacher_learner_record,
+                competency_id=task.competency_id,
+            ).exists()
+            if not is_assigned:
+                raise forms.ValidationError('This task belongs to a competency not assigned to the selected learner record.')
         if teacher_learner_record and task:
             existing = AssessmentResult.objects.filter(teacher_learner_record=teacher_learner_record, task=task)
             if self.instance.pk:

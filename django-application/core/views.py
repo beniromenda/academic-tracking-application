@@ -766,6 +766,11 @@ def result_create(request):
 	selected_learner_queryset = _teacher_learner_records(request.user)
 	selected_task_queryset = _teacher_owned(AssessmentTask.objects.select_related('competency', 'subject').all(), request.user)
 	selected_learner = selected_learner_queryset.filter(pk=selected_learner_id).first() if selected_learner_id else None
+	if selected_learner:
+		assigned_competency_ids = TeacherLearnerCompetencyAssignment.objects.filter(
+			teacher_learner_record=selected_learner
+		).values_list('competency_id', flat=True)
+		selected_task_queryset = selected_task_queryset.filter(competency_id__in=assigned_competency_ids)
 	selected_task = selected_task_queryset.filter(pk=selected_task_id).first() if selected_task_id else None
 	if active_subject:
 		if selected_task and selected_task.subject_id != active_subject.id:
@@ -776,7 +781,12 @@ def result_create(request):
 		return redirect('result_bulk_entry')
 
 	if request.method == 'POST':
-		form = AssessmentResultForm(request.POST, active_subject=active_subject, current_user=request.user)
+		form = AssessmentResultForm(
+			request.POST,
+			active_subject=active_subject,
+			current_user=request.user,
+			teacher_learner_record=selected_learner,
+		)
 		form.fields['teacher_learner_record'].widget = forms.HiddenInput()
 		form.fields['task'].widget = forms.HiddenInput()
 		if form.is_valid():
@@ -788,7 +798,12 @@ def result_create(request):
 			messages.success(request, 'Assessment result recorded successfully.')
 			return redirect('result_list')
 	else:
-		form = AssessmentResultForm(active_subject=active_subject, current_user=request.user, initial={'teacher_learner_record': selected_learner.id if selected_learner else None, 'task': selected_task.id if selected_task else None})
+		form = AssessmentResultForm(
+			active_subject=active_subject,
+			current_user=request.user,
+			teacher_learner_record=selected_learner,
+			initial={'teacher_learner_record': selected_learner.id if selected_learner else None, 'task': selected_task.id if selected_task else None},
+		)
 		form.fields['teacher_learner_record'].widget = forms.HiddenInput()
 		form.fields['task'].widget = forms.HiddenInput()
 		if selected_learner:
@@ -820,7 +835,13 @@ def result_update(request, pk):
 	result_queryset = _teacher_owned_results(AssessmentResult.objects.all(), request.user)
 	result = get_object_or_404(result_queryset, **result_filters)
 	if request.method == 'POST':
-		form = AssessmentResultForm(request.POST, instance=result, active_subject=active_subject, current_user=request.user)
+		form = AssessmentResultForm(
+			request.POST,
+			instance=result,
+			active_subject=active_subject,
+			current_user=request.user,
+			teacher_learner_record=result.teacher_learner_record,
+		)
 		form.fields['teacher_learner_record'].widget = forms.HiddenInput()
 		form.fields['task'].widget = forms.HiddenInput()
 		if form.is_valid():
@@ -832,7 +853,12 @@ def result_update(request, pk):
 			messages.success(request, 'Assessment result updated successfully.')
 			return redirect('result_list')
 	else:
-		form = AssessmentResultForm(instance=result, active_subject=active_subject, current_user=request.user)
+		form = AssessmentResultForm(
+			instance=result,
+			active_subject=active_subject,
+			current_user=request.user,
+			teacher_learner_record=result.teacher_learner_record,
+		)
 		form.fields['teacher_learner_record'].widget = forms.HiddenInput()
 		form.fields['task'].widget = forms.HiddenInput()
 	return render(
@@ -882,6 +908,11 @@ def result_bulk_entry(request):
 	selected_learner_id = request.GET.get('learner', '').strip()
 	selected_task_id = request.GET.get('task', '').strip()
 	selected_learner = learners.filter(pk=selected_learner_id).first() if selected_learner_id else None
+	if selected_learner:
+		assigned_competency_ids = TeacherLearnerCompetencyAssignment.objects.filter(
+			teacher_learner_record=selected_learner
+		).values_list('competency_id', flat=True)
+		tasks = tasks.filter(competency_id__in=assigned_competency_ids)
 	selected_task = tasks.filter(pk=selected_task_id).first() if selected_task_id else None
 
 	return render(
