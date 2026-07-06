@@ -95,17 +95,21 @@
       }
 
       body.auth-page .auth-field input:focus {
-        outline: 2px solid rgba(47, 125, 246, 0.16);
-        border-color: #4f84f6;
+        outline: 2px solid rgba(63, 96, 173, 0.2);
+        border-color: #3f60ad;
       }
 
       body.auth-page .auth-button {
         width: 100%;
         border-radius: 12px;
-        background: linear-gradient(90deg, #1d4ed8 0%, #2f7df6 100%);
-        box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
+        background: #3f60ad;
+        box-shadow: 0 10px 18px rgba(63, 96, 173, 0.28);
         padding: 0.95rem 1rem;
         font-weight: 700;
+      }
+
+      body.auth-page .auth-button:hover {
+        background: #365596;
       }
 
       body.auth-page .message.error {
@@ -152,7 +156,6 @@
           </div>
           <div class="auth-copy">
             <h2>Log In</h2>
-            <p>Use your email address or username and password to continue.</p>
           </div>
         </div>
 
@@ -165,7 +168,7 @@
         <form method="post" class="auth-form" novalidate>
           {% csrf_token %}
           <div class="form-field auth-field">
-            <label for="{{ form.username.id_for_label }}">Email address or username</label>
+            <label for="{{ form.username.id_for_label }}">Username</label>
             {{ form.username }}
             {% if form.username.errors %}
             <div class="field-error">{{ form.username.errors }}</div>

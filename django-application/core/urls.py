@@ -25,6 +25,7 @@ urlpatterns = [
     path('learners/<int:pk>/delete/', views.learner_delete, name='learner_delete'),
 
     path('competencies/', views.competency_list, name='competency_list'),
+    path('competencies/<int:pk>/learners/', views.competency_assigned_learners, name='competency_assigned_learners'),
     path('competencies/create/', views.competency_create, name='competency_create'),
     path('competencies/<int:pk>/edit/', views.competency_update, name='competency_update'),
     path('competencies/<int:pk>/delete/', views.competency_delete, name='competency_delete'),

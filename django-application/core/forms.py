@@ -23,10 +23,10 @@ CBC_RATING_CHOICES = [
 class AccountAuthenticationForm(AuthenticationForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['username'].label = 'Email address or username'
+        self.fields['username'].label = 'Username'
         self.fields['username'].widget = forms.TextInput(attrs={
             'autocomplete': 'username',
-            'placeholder': 'you@example.com or username',
+            'placeholder': 'Enter your username',
         })
         self.fields['password'].widget = forms.PasswordInput(attrs={
             'autocomplete': 'current-password',
@@ -412,11 +412,7 @@ class CompetencyForm(forms.ModelForm):
 class AssessmentTaskForm(forms.ModelForm):
     def __init__(self, *args, active_subject=None, current_user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if current_user and hasattr(current_user, 'account') and getattr(current_user.account, 'role', None) == UserAccount.ROLE_TEACHER:
-            competencies = Competency.objects.filter(created_by=current_user)
-            if self.instance and self.instance.pk:
-                competencies = competencies | Competency.objects.filter(pk=self.instance.competency_id)
-            self.fields['competency'].queryset = competencies.distinct().order_by('competency_code')
+        self.fields['competency'].queryset = Competency.objects.order_by('competency_code')
         if active_subject:
             self.fields['subject'].initial = active_subject
             self.fields['subject'].widget = forms.HiddenInput()
@@ -579,7 +575,7 @@ class TeacherLearnerCompetencyAssignmentForm(forms.Form):
 
     def __init__(self, *args, teacher_learner_record, current_user, **kwargs):
         super().__init__(*args, **kwargs)
-        competency_queryset = Competency.objects.filter(created_by=current_user).order_by('competency_code')
+        competency_queryset = Competency.objects.order_by('competency_code')
         self.fields['competencies'].queryset = competency_queryset
         assigned_ids = TeacherLearnerCompetencyAssignment.objects.filter(
             teacher_learner_record=teacher_learner_record

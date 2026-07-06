@@ -239,12 +239,14 @@
 {% endif %}
 <section class="competencies-hero">
   <div class="competencies-hero__copy">
-    <p class="competencies-hero__eyebrow">Teacher Competency Management</p>
-    <h2>Manage Competency Records</h2>
-    <p>View, manage and organize competency records to support effective teaching and learning.</p>
+    <p class="competencies-hero__eyebrow">Curriculum Competency Catalog</p>
+    <h2>{% if can_manage_competencies %}Manage Competency Records{% else %}View Competency Records{% endif %}</h2>
+    <p>{% if can_manage_competencies %}Create and maintain predefined curriculum competencies and learning outcomes.{% else %}Browse predefined curriculum competencies and learning outcomes for assignment and assessment tasks.{% endif %}</p>
+    {% if can_manage_competencies %}
     <div class="competencies-hero__actions">
       <a class="competencies-create-btn" href="{% url 'competency_create' %}">+ Create Competency</a>
     </div>
+    {% endif %}
   </div>
 </section>
 
@@ -273,7 +275,13 @@
         <th>Competency Code</th>
         <th>Competency Name</th>
         <th>Learning Outcome</th>
+        {% if is_teacher_view %}
+        <th>Assigned Learners</th>
+        <th>View</th>
+        {% endif %}
+        {% if can_manage_competencies %}
         <th>Actions</th>
+        {% endif %}
       </tr>
     </thead>
     <tbody>
@@ -282,14 +290,22 @@
         <td>{{ competency.competency_code }}</td>
         <td>{{ competency.competency_name }}</td>
         <td>{{ competency.learning_outcome|default:'-' }}</td>
+        {% if is_teacher_view %}
+        <td>{{ competency.assigned_learner_count|default:0 }}</td>
+        <td>
+          <a class="competency-action competency-action--edit" href="{% url 'competency_assigned_learners' competency.id %}">View</a>
+        </td>
+        {% endif %}
+        {% if can_manage_competencies %}
         <td>
           <a class="competency-action competency-action--edit" href="{% url 'competency_update' competency.id %}">Edit</a>
           <a class="competency-action competency-action--delete" href="{% url 'competency_delete' competency.id %}">Delete</a>
         </td>
+        {% endif %}
       </tr>
       {% empty %}
       <tr>
-        <td colspan="4" class="competencies-empty">No competencies found.</td>
+        <td colspan="{% if can_manage_competencies %}4{% elif is_teacher_view %}5{% else %}3{% endif %}" class="competencies-empty">No competencies found.</td>
       </tr>
       {% endfor %}
     </tbody>

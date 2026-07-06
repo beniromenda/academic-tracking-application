@@ -151,7 +151,6 @@ def dashboard(request):
 	result_queryset = AssessmentResult.objects.all()
 	learner_queryset = LearnerProfile.objects.all()
 	if _is_teacher(request.user):
-		competency_queryset = competency_queryset.filter(created_by=request.user)
 		task_queryset = task_queryset.filter(created_by=request.user)
 		result_queryset = result_queryset.filter(teacher_learner_record__teacher=request.user)
 		learner_queryset = LearnerProfile.objects.filter(teacher_records__teacher=request.user).distinct()
@@ -185,7 +184,7 @@ def dashboard(request):
 		# and calculate the average only from results for that subject's tasks.
 		competency_filters = Q(tasks__subject=active_subject, tasks__results__isnull=False)
 		if _is_teacher(request.user):
-			competency_filters &= Q(created_by=request.user, tasks__created_by=request.user, tasks__results__created_by=request.user)
+			competency_filters &= Q(tasks__created_by=request.user, tasks__results__created_by=request.user)
 		competency_data = list(
 			Competency.objects
 			.filter(competency_filters)
@@ -599,21 +598,69 @@ def competency_list(request):
 	if access_denied:
 		return access_denied
 	query = request.GET.get('q', '').strip()
-	competencies = _teacher_owned(Competency.objects.select_related('created_by').all(), request.user)
+	competencies = Competency.objects.select_related('created_by').all()
+	is_teacher_view = _is_teacher(request.user)
+	if is_teacher_view:
+		competencies = competencies.annotate(
+			assigned_learner_count=Count(
+				'teacher_assignments__teacher_learner_record',
+				filter=Q(teacher_assignments__teacher_learner_record__teacher=request.user),
+				distinct=True,
+			)
+		)
 	if query:
 		competencies = competencies.filter(
-			Q(competency_code__icontains=query) | Q(competency_name__icontains=query)
+			Q(competency_code__icontains=query)
+			| Q(competency_name__icontains=query)
+			| Q(learning_outcome__icontains=query)
 		)
 	competencies = competencies.order_by('competency_code')
-	return render(request, 'core/competency_list.html', {'competencies': competencies, 'query': query})
+	return render(
+		request,
+		'core/competency_list.html',
+		{
+			'competencies': competencies,
+			'query': query,
+			'can_manage_competencies': _is_admin(request.user),
+			'is_teacher_view': is_teacher_view,
+		},
+	)
+
+
+@login_required
+def competency_assigned_learners(request, pk):
+	access_denied = _deny_if_not(_is_teacher(request.user))
+	if access_denied:
+		return access_denied
+
+	competency = get_object_or_404(Competency.objects.all(), pk=pk)
+	assigned_records = (
+		TeacherLearnerRecord.objects
+		.select_related('learner_profile')
+		.filter(
+			teacher=request.user,
+			competency_assignments__competency=competency,
+		)
+		.distinct()
+		.order_by('learner_profile__full_name')
+	)
+
+	return render(
+		request,
+		'core/competency_assigned_learners.html',
+		{
+			'competency': competency,
+			'assigned_records': assigned_records,
+			'assigned_count': assigned_records.count(),
+		},
+	)
 
 
 @login_required
 def competency_create(request):
-	access_denied = _deny_if_not(_is_teacher_or_admin(request.user))
+	access_denied = _deny_if_not(_is_admin(request.user))
 	if access_denied:
 		return access_denied
-	active_subject = _active_subject_for_request(request)
 
 	if request.method == 'POST':
 		form = CompetencyForm(request.POST)
@@ -629,11 +676,10 @@ def competency_create(request):
 
 @login_required
 def competency_update(request, pk):
-	access_denied = _deny_if_not(_is_teacher_or_admin(request.user))
+	access_denied = _deny_if_not(_is_admin(request.user))
 	if access_denied:
 		return access_denied
-	active_subject = _active_subject_for_request(request)
-	competency = get_object_or_404(_teacher_owned(Competency.objects.all(), request.user), pk=pk)
+	competency = get_object_or_404(Competency.objects.all(), pk=pk)
 	if request.method == 'POST':
 		form = CompetencyForm(request.POST, instance=competency)
 		if form.is_valid():
@@ -647,10 +693,10 @@ def competency_update(request, pk):
 
 @login_required
 def competency_delete(request, pk):
-	access_denied = _deny_if_not(_is_teacher_or_admin(request.user))
+	access_denied = _deny_if_not(_is_admin(request.user))
 	if access_denied:
 		return access_denied
-	competency = get_object_or_404(_teacher_owned(Competency.objects.all(), request.user), pk=pk)
+	competency = get_object_or_404(Competency.objects.all(), pk=pk)
 	if request.method == 'POST':
 		competency.delete()
 		messages.success(request, 'Competency deleted successfully.')
@@ -920,7 +966,7 @@ def result_bulk_entry(request):
 		'core/bulk_result_entry.html',
 		{
 			'learners': learners,
-			'competencies': _teacher_owned(Competency.objects.order_by('competency_code'), request.user),
+			'competencies': Competency.objects.order_by('competency_code'),
 			'selected_learner': selected_learner,
 			'selected_learner_id': selected_learner_id,
 			'tasks': tasks,
@@ -940,26 +986,26 @@ def report_view(request):
 	learner_profile = LearnerProfile.objects.filter(user_account=request.user.account).first() if current_role == UserAccount.ROLE_LEARNER else None
 	report_id = request.POST.get('report') if request.method == 'POST' else request.GET.get('report', '').strip()
 	selected_learner_id = '' if current_role == UserAccount.ROLE_LEARNER else (request.POST.get('learner') if request.method == 'POST' else request.GET.get('learner', '').strip())
-	selected_competency_id = request.POST.get('competency') if request.method == 'POST' else request.GET.get('competency', '').strip()
 	view_requested = request.POST.get('view_report') == '1' if request.method == 'POST' else request.GET.get('view_report') == '1'
-	if current_role == UserAccount.ROLE_LEARNER and (selected_competency_id or report_id):
+	if current_role == UserAccount.ROLE_LEARNER and report_id:
 		view_requested = True
 
 	learners = TeacherLearnerRecord.objects.none() if learner_profile else _teacher_learner_records(request.user).order_by('learner_profile__full_name')
-	competencies = _teacher_owned(Competency.objects.order_by('competency_code'), request.user)
+	competencies = Competency.objects.none()
 	if current_role == UserAccount.ROLE_LEARNER and learner_profile:
 		competencies = Competency.objects.filter(report_feedbacks__learner=learner_profile, report_feedbacks__is_available_for_learner=True).distinct().order_by('competency_code')
-	if active_subject:
-		competencies = competencies.filter(tasks__subject=active_subject).distinct()
 
 	selected_learner_record = learners.filter(pk=selected_learner_id).first() if selected_learner_id else None
 	selected_learner = selected_learner_record.learner_profile if selected_learner_record else learner_profile
-	selected_competency = competencies.filter(pk=selected_competency_id).first() if selected_competency_id else None
+	selected_competency = None
+	selected_competency_id = ''
 
 	results = AssessmentResult.objects.none()
 	report_feedback = None
 	report_already_saved = False
 	teacher_feedback_text = ''
+	task_rows = []
+	assigned_competencies = Competency.objects.none()
 	validation = {
 		'required_fields_ok': True,
 		'duplicate_ok': True,
@@ -986,29 +1032,46 @@ def report_view(request):
 			results = report_feedback.assessment_results.select_related('learner', 'task', 'task__competency', 'created_by').order_by('task__task_name')
 			report_already_saved = True
 			teacher_feedback_text = report_feedback.feedback
+			task_rows = [{'task': result.task, 'competency': result.task.competency, 'result': result} for result in results]
 
-	if selected_learner and selected_competency and (current_role != UserAccount.ROLE_LEARNER or report_feedback):
-		if current_role != UserAccount.ROLE_LEARNER:
-			results = AssessmentResult.objects.select_related('learner', 'teacher_learner_record', 'task', 'task__competency', 'created_by').filter(
-				teacher_learner_record=selected_learner_record,
-				task__competency=selected_competency,
-			)
-			if active_subject:
-				results = results.filter(task__subject=active_subject)
-			results = results.order_by('task__task_name')
+	if current_role != UserAccount.ROLE_LEARNER and selected_learner_record:
+		assigned_competencies = Competency.objects.filter(
+			teacher_assignments__teacher_learner_record=selected_learner_record,
+		).distinct().order_by('competency_code')
 
-			report_feedback = LearnerReportFeedback.objects.filter(
-				teacher_learner_record=selected_learner_record,
-				competency=selected_competency,
-			)
-			if _is_teacher(request.user):
-				report_feedback = report_feedback.filter(teacher=request.user)
-			report_feedback = report_feedback.prefetch_related('assessment_results').first()
-			if report_feedback:
-				report_already_saved = True
-				teacher_feedback_text = report_feedback.feedback
+		tasks_queryset = AssessmentTask.objects.select_related('competency').filter(competency__in=assigned_competencies)
+		tasks_queryset = _teacher_owned(tasks_queryset, request.user)
+		if active_subject:
+			tasks_queryset = tasks_queryset.filter(subject=active_subject)
+		tasks_queryset = tasks_queryset.order_by('competency__competency_code', 'task_name')
 
-		missing_required_results = results.filter(
+		results = AssessmentResult.objects.select_related('learner', 'teacher_learner_record', 'task', 'task__competency', 'created_by').filter(
+			teacher_learner_record=selected_learner_record,
+			task__in=tasks_queryset,
+		).order_by('task__competency__competency_code', 'task__task_name')
+
+		results_by_task = {result.task_id: result for result in results}
+		task_rows = [
+			{
+				'task': task,
+				'competency': task.competency,
+				'result': results_by_task.get(task.id),
+			}
+			for task in tasks_queryset
+		]
+
+		report_feedback = LearnerReportFeedback.objects.filter(
+			teacher_learner_record=selected_learner_record,
+			competency__in=assigned_competencies,
+		).order_by('-updated_at').first()
+		if report_feedback:
+			report_already_saved = True
+			teacher_feedback_text = report_feedback.feedback
+
+	if selected_learner and (current_role == UserAccount.ROLE_LEARNER or selected_learner_record):
+		results_for_summary = results.exclude(score__isnull=True)
+
+		missing_required_results = results_for_summary.filter(
 			Q(score__isnull=True)
 			| Q(cbc_rating__isnull=True)
 			| Q(cbc_rating='')
@@ -1016,7 +1079,7 @@ def report_view(request):
 			| Q(mastery_status='')
 		)
 		duplicate_results = (
-			results.values('learner_id', 'task_id')
+			results_for_summary.values('learner_id', 'task_id')
 			.annotate(total=Count('id'))
 			.filter(total__gt=1)
 		)
@@ -1026,59 +1089,65 @@ def report_view(request):
 		validation['required_fields_ok'] = validation['missing_count'] == 0
 		validation['duplicate_ok'] = validation['duplicate_count'] == 0
 
-		total_results = results.count()
-		score_summary = results.aggregate(avg=Avg('score'), highest=Max('score'), lowest=Min('score'))
+		total_results = results_for_summary.count()
+		score_summary = results_for_summary.aggregate(avg=Avg('score'), highest=Max('score'), lowest=Min('score'))
 		term_average_score = score_summary['avg'] or 0
 		highest_score = score_summary['highest']
 		lowest_score = score_summary['lowest']
 		average_cbc_rating = _cbc_rating_from_average(score_summary['avg'])
 
 		rating_choices = (
-			results.exclude(cbc_rating__isnull=True)
+			results_for_summary.exclude(cbc_rating__isnull=True)
 			.exclude(cbc_rating='')
 			.values_list('cbc_rating', flat=True)
 			.distinct()
 			.order_by('cbc_rating')
 		)
 		for rating in rating_choices:
-			rating_breakdown.append({'rating': rating, 'count': results.filter(cbc_rating=rating).count()})
+			rating_breakdown.append({'rating': rating, 'count': results_for_summary.filter(cbc_rating=rating).count()})
 
 	if current_role != UserAccount.ROLE_LEARNER and request.method == 'POST' and request.POST.get('save_report') == '1':
 		view_requested = True
 		teacher_feedback_text = request.POST.get('teacher_feedback', '').strip()
-		if not selected_learner_record or not selected_competency:
-			messages.error(request, 'Select a learner and competency before saving the report.')
+		if not selected_learner_record:
+			messages.error(request, 'Select a learner before saving the report.')
+		elif not assigned_competencies.exists():
+			messages.error(request, 'Assign at least one competency to this learner record before saving the report.')
 		elif not teacher_feedback_text:
 			messages.error(request, 'Teacher feedback is required before saving the report.')
 		elif not results.exists():
-			messages.error(request, 'No assessment results found for the selected learner and competency.')
+			messages.error(request, 'No assessment results found for the selected learner record.')
 		else:
-			status_counts = (
-				results.values('mastery_status')
-				.annotate(total=Count('id'))
-				.order_by('-total', 'mastery_status')
-			)
-			overall_status = status_counts[0]['mastery_status'] if status_counts else AssessmentResult.MASTERY_DEVELOPING
-			report_feedback, _ = LearnerReportFeedback.objects.update_or_create(
-				teacher_learner_record=selected_learner_record,
-				competency=selected_competency,
-				defaults={
-					'learner': selected_learner_record.learner_profile,
-					'teacher': request.user,
-					'feedback': teacher_feedback_text,
-					'overall_competency_status': overall_status,
-					'is_available_for_learner': True,
-				},
-			)
-			report_feedback.assessment_results.set(results)
+			for competency in assigned_competencies:
+				competency_results = results.filter(task__competency=competency)
+				status_counts = (
+					competency_results.values('mastery_status')
+					.annotate(total=Count('id'))
+					.order_by('-total', 'mastery_status')
+				)
+				overall_status = status_counts[0]['mastery_status'] if status_counts else AssessmentResult.MASTERY_DEVELOPING
+				report_feedback, _ = LearnerReportFeedback.objects.update_or_create(
+					teacher_learner_record=selected_learner_record,
+					competency=competency,
+					defaults={
+						'learner': selected_learner_record.learner_profile,
+						'teacher': request.user,
+						'feedback': teacher_feedback_text,
+						'overall_competency_status': overall_status,
+						'is_available_for_learner': True,
+					},
+				)
+				report_feedback.assessment_results.set(competency_results)
 			messages.success(request, 'Report saved successfully.')
-			return redirect(f"{reverse('report_view')}?learner={selected_learner_record.id}&competency={selected_competency.id}&view_report=1")
+			return redirect(f"{reverse('report_view')}?learner={selected_learner_record.id}&view_report=1")
 
 	return render(
 		request,
 		'core/report.html',
 		{
 			'results': results,
+			'task_rows': task_rows,
+			'assigned_competencies': assigned_competencies,
 			'learners': learners,
 			'current_role': current_role,
 			'learner_profile': learner_profile,

@@ -80,6 +80,9 @@
             <a class="sidebar__link sidebar__link--users {% if request.resolver_match.url_name == 'user_list' %}is-active{% endif %}" href="{% url 'user_list' %}">
               <span>Users</span>
             </a>
+            <a class="sidebar__link sidebar__link--competencies {% if request.resolver_match.url_name == 'competency_list' %}is-active{% endif %}" href="{% url 'competency_list' %}">
+              <span>Competencies</span>
+            </a>
           </div>
           {% endif %}
           {% endwith %}
