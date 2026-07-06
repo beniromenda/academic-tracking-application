@@ -283,7 +283,7 @@
                 <select id="learner" name="learner" required>
                     <option value="">Select learner</option>
                     {% for learner in learners %}
-                        <option value="{{ learner.id }}" {% if learner.id|stringformat:'s' == selected_learner_id %}selected{% endif %}>{{ learner.full_name }} ({{ learner.admission_number }})</option>
+                        <option value="{{ learner.id }}" {% if learner.id|stringformat:'s' == selected_learner_id %}selected{% endif %}>{{ learner.learner_profile.full_name }} ({{ learner.learner_profile.admission_number }})</option>
                     {% endfor %}
                 </select>
             </div>

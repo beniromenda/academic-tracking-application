@@ -83,6 +83,21 @@ class LearnerProfile(models.Model):
 		return f'{self.full_name} ({self.admission_number})'
 
 
+class TeacherLearnerRecord(models.Model):
+	teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='teacher_learner_records')
+	learner_profile = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name='teacher_records')
+	created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+	class Meta:
+		ordering = ['learner_profile__full_name']
+		constraints = [
+			models.UniqueConstraint(fields=['teacher', 'learner_profile'], name='unique_teacher_learner_record'),
+		]
+
+	def __str__(self):
+		return f'{self.teacher.username} - {self.learner_profile.full_name}'
+
+
 class Competency(models.Model):
 	competency_code = models.CharField(max_length=20, unique=True)
 	competency_name = models.CharField(max_length=100)
@@ -126,6 +141,13 @@ class AssessmentResult(models.Model):
 	]
 
 	learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name='results')
+	teacher_learner_record = models.ForeignKey(
+		TeacherLearnerRecord,
+		on_delete=models.CASCADE,
+		related_name='results',
+		null=True,
+		blank=True,
+	)
 	task = models.ForeignKey(AssessmentTask, on_delete=models.CASCADE, related_name='results')
 	created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='recorded_results')
 	score = models.DecimalField(
@@ -146,7 +168,11 @@ class AssessmentResult(models.Model):
 	class Meta:
 		ordering = ['-created_at']
 		constraints = [
-			models.UniqueConstraint(fields=['learner', 'task'], name='unique_learner_task_result'),
+			models.UniqueConstraint(
+				fields=['teacher_learner_record', 'task'],
+				condition=models.Q(teacher_learner_record__isnull=False),
+				name='unique_teacher_learner_task_result',
+			),
 		]
 
 	def __str__(self):
@@ -155,6 +181,13 @@ class AssessmentResult(models.Model):
 
 class LearnerReportFeedback(models.Model):
 	learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name='report_feedbacks')
+	teacher_learner_record = models.ForeignKey(
+		TeacherLearnerRecord,
+		on_delete=models.CASCADE,
+		related_name='report_feedbacks',
+		null=True,
+		blank=True,
+	)
 	competency = models.ForeignKey(Competency, on_delete=models.CASCADE, related_name='report_feedbacks')
 	teacher = models.ForeignKey(User, on_delete=models.PROTECT, related_name='written_report_feedbacks')
 	feedback = models.TextField()
@@ -171,7 +204,11 @@ class LearnerReportFeedback(models.Model):
 	class Meta:
 		ordering = ['-updated_at']
 		constraints = [
-			models.UniqueConstraint(fields=['learner', 'competency'], name='unique_learner_competency_report_feedback'),
+			models.UniqueConstraint(
+				fields=['teacher_learner_record', 'competency'],
+				condition=models.Q(teacher_learner_record__isnull=False),
+				name='unique_teacher_learner_competency_report_feedback',
+			),
 		]
 
 	def __str__(self):

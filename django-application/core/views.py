@@ -14,7 +14,6 @@ from .forms import (
 	AssessmentResultForm,
 	AssessmentTaskForm,
 	CompetencyForm,
-	LearnerProfileForm,
 	LearnerAccountCreateForm,
 	TeacherAccountCreateForm,
 	SubjectForm,
@@ -22,7 +21,7 @@ from .forms import (
 	UserAccountCreateForm,
 	UserAccountUpdateForm,
 )
-from .models import AssessmentResult, AssessmentTask, Competency, LearnerProfile, LearnerReportFeedback, Subject, UserAccount
+from .models import AssessmentResult, AssessmentTask, Competency, LearnerProfile, LearnerReportFeedback, Subject, TeacherLearnerRecord, UserAccount
 
 
 ACTIVE_SUBJECT_SESSION_KEY = 'active_subject_id'
@@ -74,6 +73,19 @@ def _deny_if_not(condition):
 def _teacher_owned(queryset, user, field_name='created_by'):
 	if _is_teacher(user):
 		return queryset.filter(**{field_name: user})
+	return queryset
+
+
+def _teacher_learner_records(user):
+	queryset = TeacherLearnerRecord.objects.select_related('teacher', 'learner_profile', 'learner_profile__user_account__user')
+	if _is_teacher(user):
+		return queryset.filter(teacher=user)
+	return queryset
+
+
+def _teacher_owned_results(queryset, user):
+	if _is_teacher(user):
+		return queryset.filter(teacher_learner_record__teacher=user)
 	return queryset
 
 
@@ -140,8 +152,8 @@ def dashboard(request):
 	if _is_teacher(request.user):
 		competency_queryset = competency_queryset.filter(created_by=request.user)
 		task_queryset = task_queryset.filter(created_by=request.user)
-		result_queryset = result_queryset.filter(created_by=request.user)
-		learner_queryset = learner_queryset.filter(created_by=request.user)
+		result_queryset = result_queryset.filter(teacher_learner_record__teacher=request.user)
+		learner_queryset = LearnerProfile.objects.filter(teacher_records__teacher=request.user).distinct()
 	learner_profile = None
 	if current_role == UserAccount.ROLE_LEARNER:
 		learner_profile = LearnerProfile.objects.filter(user_account=request.user.account).first()
@@ -308,27 +320,13 @@ def learner_account_create(request):
 	if access_denied:
 		return access_denied
 
-	admission_number = request.POST.get('admission_number', '').strip() if request.method == 'POST' else request.GET.get('admission_number', '').strip()
-	learner = None
-	form = None
-
-	if admission_number:
-		learner = LearnerProfile.objects.select_related('user_account__user').filter(admission_number__iexact=admission_number).first()
-		if not learner and request.method == 'GET':
-			messages.error(request, 'No learner was found with that admission number.')
-
 	if request.method == 'POST':
-		if not learner:
-			messages.error(request, 'Search for a valid learner admission number before creating the account.')
-		elif learner.user_account_id:
-			messages.error(request, 'This learner already has an account linked to the profile.')
-		else:
-			form = LearnerAccountCreateForm(request.POST)
-			if form.is_valid():
-				form.save(learner)
-				messages.success(request, f'Learner account created successfully for {learner.full_name}.')
-				return redirect('user_list')
-	if form is None and learner and not learner.user_account_id:
+		form = LearnerAccountCreateForm(request.POST)
+		if form.is_valid():
+			learner = form.save(created_by=request.user)
+			messages.success(request, f'Learner account created successfully for {learner.full_name}.')
+			return redirect('user_list')
+	else:
 		form = LearnerAccountCreateForm()
 
 	return render(
@@ -336,8 +334,6 @@ def learner_account_create(request):
 		'core/learner_account_form.html',
 		{
 			'title': 'Create Learner Account',
-			'admission_number': admission_number,
-			'learner': learner,
 			'form': form,
 		},
 	)
@@ -462,32 +458,53 @@ def learner_list(request):
 		return access_denied
 
 	query = request.GET.get('q', '').strip()
-	learners = _teacher_owned(LearnerProfile.objects.select_related('user_account__user', 'created_by').all(), request.user)
+	learners = _teacher_learner_records(request.user)
 	if query:
 		learners = learners.filter(
-			Q(full_name__icontains=query) | Q(admission_number__icontains=query)
+			Q(learner_profile__full_name__icontains=query)
+			| Q(learner_profile__admission_number__icontains=query)
+			| Q(learner_profile__class_name__icontains=query)
 		)
-	learners = learners.order_by('full_name')
+	learners = learners.order_by('learner_profile__full_name')
 	return render(request, 'core/learner_list.html', {'learners': learners, 'query': query})
 
 
 @login_required
 def learner_create(request):
-	access_denied = _deny_if_not(_is_teacher_or_admin(request.user))
+	access_denied = _deny_if_not(_is_teacher(request.user))
 	if access_denied:
 		return access_denied
 
+	admission_number = request.POST.get('admission_number', '').strip() if request.method == 'POST' else request.GET.get('admission_number', '').strip()
+	learner = None
+	existing_record = None
+
+	if admission_number:
+		learner = LearnerProfile.objects.select_related('user_account__user').filter(admission_number__iexact=admission_number).first()
+		if learner:
+			existing_record = TeacherLearnerRecord.objects.filter(teacher=request.user, learner_profile=learner).first()
+		elif request.method == 'GET':
+			messages.error(request, 'No learner was found with that admission number.')
+
 	if request.method == 'POST':
-		form = LearnerProfileForm(request.POST)
-		if form.is_valid():
-			learner = form.save(commit=False)
-			learner.created_by = request.user
-			learner.save()
-			messages.success(request, 'Learner profile created successfully.')
+		if not learner:
+			messages.error(request, 'Search for a valid admission number before saving the learner to your records.')
+		elif existing_record:
+			messages.info(request, 'This learner is already saved in your records.')
+		else:
+			TeacherLearnerRecord.objects.create(teacher=request.user, learner_profile=learner)
+			messages.success(request, 'Learner record saved successfully.')
 			return redirect('learner_list')
-	else:
-		form = LearnerProfileForm()
-	return render(request, 'core/learner_form.html', {'form': form, 'title': 'Create Learner Profile', 'submit_label': 'Save', 'cancel_url': 'learner_list'})
+	return render(
+		request,
+		'core/teacher_learner_record_form.html',
+		{
+			'title': 'Add Learner Record',
+			'admission_number': admission_number,
+			'learner': learner,
+			'existing_record': existing_record,
+		},
+	)
 
 
 @login_required
@@ -495,17 +512,8 @@ def learner_update(request, pk):
 	access_denied = _deny_if_not(_is_teacher_or_admin(request.user))
 	if access_denied:
 		return access_denied
-
-	learner = get_object_or_404(_teacher_owned(LearnerProfile.objects.all(), request.user), pk=pk)
-	if request.method == 'POST':
-		form = LearnerProfileForm(request.POST, instance=learner)
-		if form.is_valid():
-			form.save()
-			messages.success(request, 'Learner profile updated successfully.')
-			return redirect('learner_list')
-	else:
-		form = LearnerProfileForm(instance=learner)
-	return render(request, 'core/learner_form.html', {'form': form, 'title': 'Edit Learner Profile', 'submit_label': 'Save', 'cancel_url': 'learner_list'})
+	messages.info(request, 'Teacher learner records are based on existing admin-created learner accounts and cannot be edited here.')
+	return redirect('learner_list')
 
 
 @login_required
@@ -514,29 +522,10 @@ def learner_delete(request, pk):
 	if access_denied:
 		return access_denied
 
-	learner = get_object_or_404(_teacher_owned(LearnerProfile.objects.all(), request.user), pk=pk)
+	learner = get_object_or_404(_teacher_learner_records(request.user), pk=pk)
 	if request.method == 'POST':
-		try:
-			with transaction.atomic():
-				table_names = set(connection.introspection.table_names())
-				if 'core_learnerreportfeedback' in table_names:
-					with connection.cursor() as cursor:
-						if 'core_learnerreportfeedback_assessment_results' in table_names:
-							cursor.execute(
-								'''DELETE FROM core_learnerreportfeedback_assessment_results
-								   WHERE learnerreportfeedback_id IN (
-									   SELECT id FROM core_learnerreportfeedback WHERE learner_id = %s
-								   )''',
-								[learner.pk],
-							)
-						cursor.execute('DELETE FROM core_learnerreportfeedback WHERE learner_id = %s', [learner.pk])
-
-				LearnerProfile.objects.select_for_update().get(pk=pk).delete()
-		except IntegrityError:
-			messages.error(request, 'Learner could not be deleted because related records still exist.')
-			return redirect('learner_list')
-
-		messages.success(request, 'Learner profile deleted successfully.')
+		learner.delete()
+		messages.success(request, 'Learner record removed from your workspace successfully.')
 		return redirect('learner_list')
 	return render(request, 'core/learner_confirm_delete.html', {'object': learner})
 
@@ -694,7 +683,7 @@ def result_list(request):
 		return access_denied
 	active_subject = _active_subject_for_request(request)
 	query = request.GET.get('q', '').strip()
-	results = _teacher_owned(AssessmentResult.objects.select_related('learner', 'task', 'task__competency', 'task__subject', 'created_by').all(), request.user)
+	results = _teacher_owned_results(AssessmentResult.objects.select_related('learner', 'teacher_learner_record__learner_profile', 'task', 'task__competency', 'task__subject', 'created_by').all(), request.user)
 	if query:
 		results = results.filter(Q(learner__full_name__icontains=query) | Q(task__task_name__icontains=query))
 	if active_subject:
@@ -711,7 +700,7 @@ def result_create(request):
 	active_subject = _active_subject_for_request(request)
 	selected_learner_id = request.POST.get('learner') if request.method == 'POST' else request.GET.get('learner', '').strip()
 	selected_task_id = request.POST.get('task') if request.method == 'POST' else request.GET.get('task', '').strip()
-	selected_learner_queryset = _teacher_owned(LearnerProfile.objects.all(), request.user)
+	selected_learner_queryset = _teacher_learner_records(request.user)
 	selected_task_queryset = _teacher_owned(AssessmentTask.objects.select_related('competency', 'subject').all(), request.user)
 	selected_learner = selected_learner_queryset.filter(pk=selected_learner_id).first() if selected_learner_id else None
 	selected_task = selected_task_queryset.filter(pk=selected_task_id).first() if selected_task_id else None
@@ -725,21 +714,22 @@ def result_create(request):
 
 	if request.method == 'POST':
 		form = AssessmentResultForm(request.POST, active_subject=active_subject, current_user=request.user)
-		form.fields['learner'].widget = forms.HiddenInput()
+		form.fields['teacher_learner_record'].widget = forms.HiddenInput()
 		form.fields['task'].widget = forms.HiddenInput()
 		if form.is_valid():
 			result = form.save(commit=False)
+			result.learner = result.teacher_learner_record.learner_profile
 			result.created_by = request.user
 			result.feedback = result.feedback or ''
 			result.save()
 			messages.success(request, 'Assessment result recorded successfully.')
 			return redirect('result_list')
 	else:
-		form = AssessmentResultForm(active_subject=active_subject, current_user=request.user, initial={'learner': selected_learner.id if selected_learner else None, 'task': selected_task.id if selected_task else None})
-		form.fields['learner'].widget = forms.HiddenInput()
+		form = AssessmentResultForm(active_subject=active_subject, current_user=request.user, initial={'teacher_learner_record': selected_learner.id if selected_learner else None, 'task': selected_task.id if selected_task else None})
+		form.fields['teacher_learner_record'].widget = forms.HiddenInput()
 		form.fields['task'].widget = forms.HiddenInput()
 		if selected_learner:
-			form.fields['learner'].initial = selected_learner.pk
+			form.fields['teacher_learner_record'].initial = selected_learner.pk
 		if selected_task:
 			form.fields['task'].initial = selected_task.pk
 	return render(
@@ -750,7 +740,7 @@ def result_create(request):
 			'title': 'Record Assessment Result',
 			'submit_label': 'Save Result',
 			'cancel_url': 'result_list',
-			'selected_learner': selected_learner,
+			'selected_learner': selected_learner.learner_profile if selected_learner else None,
 			'selected_task': selected_task,
 		},
 	)
@@ -764,14 +754,15 @@ def result_update(request, pk):
 	result_filters = {'pk': pk}
 	if active_subject:
 		result_filters['task__subject'] = active_subject
-	result_queryset = _teacher_owned(AssessmentResult.objects.all(), request.user)
+	result_queryset = _teacher_owned_results(AssessmentResult.objects.all(), request.user)
 	result = get_object_or_404(result_queryset, **result_filters)
 	if request.method == 'POST':
 		form = AssessmentResultForm(request.POST, instance=result, active_subject=active_subject, current_user=request.user)
-		form.fields['learner'].widget = forms.HiddenInput()
+		form.fields['teacher_learner_record'].widget = forms.HiddenInput()
 		form.fields['task'].widget = forms.HiddenInput()
 		if form.is_valid():
 			updated = form.save(commit=False)
+			updated.learner = updated.teacher_learner_record.learner_profile
 			updated.created_by = request.user
 			updated.feedback = updated.feedback or result.feedback or ''
 			updated.save()
@@ -779,7 +770,7 @@ def result_update(request, pk):
 			return redirect('result_list')
 	else:
 		form = AssessmentResultForm(instance=result, active_subject=active_subject, current_user=request.user)
-		form.fields['learner'].widget = forms.HiddenInput()
+		form.fields['teacher_learner_record'].widget = forms.HiddenInput()
 		form.fields['task'].widget = forms.HiddenInput()
 	return render(
 		request,
@@ -789,7 +780,7 @@ def result_update(request, pk):
 			'title': 'Edit Assessment Result',
 			'submit_label': 'Save Result',
 			'cancel_url': 'result_list',
-			'selected_learner': result.learner,
+			'selected_learner': result.teacher_learner_record.learner_profile if result.teacher_learner_record else result.learner,
 			'selected_task': result.task,
 		},
 	)
@@ -804,7 +795,7 @@ def result_delete(request, pk):
 	result_filters = {'pk': pk}
 	if active_subject:
 		result_filters['task__subject'] = active_subject
-	result_queryset = _teacher_owned(AssessmentResult.objects.all(), request.user)
+	result_queryset = _teacher_owned_results(AssessmentResult.objects.all(), request.user)
 	result = get_object_or_404(result_queryset, **result_filters)
 	if request.method == 'POST':
 		result.delete()
@@ -820,7 +811,7 @@ def result_bulk_entry(request):
 		return access_denied
 
 	active_subject = _active_subject_for_request(request)
-	learners = _teacher_owned(LearnerProfile.objects.order_by('full_name'), request.user)
+	learners = _teacher_learner_records(request.user).order_by('learner_profile__full_name')
 	tasks = _teacher_owned(AssessmentTask.objects.select_related('competency', 'subject').all(), request.user)
 	if active_subject:
 		tasks = tasks.filter(subject=active_subject)
@@ -853,21 +844,22 @@ def report_view(request):
 	current_role = _role_for(request.user)
 	active_subject = _active_subject_for_request(request)
 	learner_profile = LearnerProfile.objects.filter(user_account=request.user.account).first() if current_role == UserAccount.ROLE_LEARNER else None
-
-	selected_learner_id = str(learner_profile.id) if learner_profile else (request.POST.get('learner') if request.method == 'POST' else request.GET.get('learner', '').strip())
+	report_id = request.POST.get('report') if request.method == 'POST' else request.GET.get('report', '').strip()
+	selected_learner_id = '' if current_role == UserAccount.ROLE_LEARNER else (request.POST.get('learner') if request.method == 'POST' else request.GET.get('learner', '').strip())
 	selected_competency_id = request.POST.get('competency') if request.method == 'POST' else request.GET.get('competency', '').strip()
 	view_requested = request.POST.get('view_report') == '1' if request.method == 'POST' else request.GET.get('view_report') == '1'
-	if current_role == UserAccount.ROLE_LEARNER and selected_competency_id:
+	if current_role == UserAccount.ROLE_LEARNER and (selected_competency_id or report_id):
 		view_requested = True
 
-	learners = LearnerProfile.objects.filter(pk=learner_profile.pk).order_by('full_name') if learner_profile else _teacher_owned(LearnerProfile.objects.order_by('full_name'), request.user)
+	learners = TeacherLearnerRecord.objects.none() if learner_profile else _teacher_learner_records(request.user).order_by('learner_profile__full_name')
 	competencies = _teacher_owned(Competency.objects.order_by('competency_code'), request.user)
 	if current_role == UserAccount.ROLE_LEARNER and learner_profile:
-		competencies = Competency.objects.filter(tasks__results__learner=learner_profile).distinct().order_by('competency_code')
+		competencies = Competency.objects.filter(report_feedbacks__learner=learner_profile, report_feedbacks__is_available_for_learner=True).distinct().order_by('competency_code')
 	if active_subject:
 		competencies = competencies.filter(tasks__subject=active_subject).distinct()
 
-	selected_learner = learners.filter(pk=selected_learner_id).first() if selected_learner_id else None
+	selected_learner_record = learners.filter(pk=selected_learner_id).first() if selected_learner_id else None
+	selected_learner = selected_learner_record.learner_profile if selected_learner_record else learner_profile
 	selected_competency = competencies.filter(pk=selected_competency_id).first() if selected_competency_id else None
 
 	results = AssessmentResult.objects.none()
@@ -887,15 +879,40 @@ def report_view(request):
 	rating_breakdown = []
 	average_cbc_rating = '-'
 
-	if selected_learner and selected_competency:
-		results = AssessmentResult.objects.select_related('learner', 'task', 'task__competency', 'created_by').filter(
-			learner=selected_learner,
-			task__competency=selected_competency,
-		)
-		results = results.filter(learner=learner_profile) if current_role == UserAccount.ROLE_LEARNER and learner_profile else _teacher_owned(results, request.user)
-		if active_subject:
-			results = results.filter(task__subject=active_subject)
-		results = results.order_by('task__task_name')
+	if current_role == UserAccount.ROLE_LEARNER and report_id:
+		report_feedback = LearnerReportFeedback.objects.filter(
+			pk=report_id,
+			learner=learner_profile,
+			is_available_for_learner=True,
+		).prefetch_related('assessment_results__task__competency', 'assessment_results__task__subject').select_related('competency', 'teacher_learner_record').first()
+		if report_feedback:
+			selected_competency = report_feedback.competency
+			selected_competency_id = str(report_feedback.competency_id)
+			selected_learner = learner_profile
+			results = report_feedback.assessment_results.select_related('learner', 'task', 'task__competency', 'created_by').order_by('task__task_name')
+			report_already_saved = True
+			teacher_feedback_text = report_feedback.feedback
+
+	if selected_learner and selected_competency and (current_role != UserAccount.ROLE_LEARNER or report_feedback):
+		if current_role != UserAccount.ROLE_LEARNER:
+			results = AssessmentResult.objects.select_related('learner', 'teacher_learner_record', 'task', 'task__competency', 'created_by').filter(
+				teacher_learner_record=selected_learner_record,
+				task__competency=selected_competency,
+			)
+			if active_subject:
+				results = results.filter(task__subject=active_subject)
+			results = results.order_by('task__task_name')
+
+			report_feedback = LearnerReportFeedback.objects.filter(
+				teacher_learner_record=selected_learner_record,
+				competency=selected_competency,
+			)
+			if _is_teacher(request.user):
+				report_feedback = report_feedback.filter(teacher=request.user)
+			report_feedback = report_feedback.prefetch_related('assessment_results').first()
+			if report_feedback:
+				report_already_saved = True
+				teacher_feedback_text = report_feedback.feedback
 
 		missing_required_results = results.filter(
 			Q(score__isnull=True)
@@ -932,23 +949,10 @@ def report_view(request):
 		for rating in rating_choices:
 			rating_breakdown.append({'rating': rating, 'count': results.filter(cbc_rating=rating).count()})
 
-		report_feedback = LearnerReportFeedback.objects.filter(
-			learner=selected_learner,
-			competency=selected_competency,
-		)
-		if _is_teacher(request.user):
-			report_feedback = report_feedback.filter(teacher=request.user)
-		if current_role == UserAccount.ROLE_LEARNER:
-			report_feedback = report_feedback.filter(is_available_for_learner=True)
-		report_feedback = report_feedback.prefetch_related('assessment_results').first()
-		if report_feedback:
-			report_already_saved = True
-			teacher_feedback_text = report_feedback.feedback
-
 	if current_role != UserAccount.ROLE_LEARNER and request.method == 'POST' and request.POST.get('save_report') == '1':
 		view_requested = True
 		teacher_feedback_text = request.POST.get('teacher_feedback', '').strip()
-		if not selected_learner or not selected_competency:
+		if not selected_learner_record or not selected_competency:
 			messages.error(request, 'Select a learner and competency before saving the report.')
 		elif not teacher_feedback_text:
 			messages.error(request, 'Teacher feedback is required before saving the report.')
@@ -962,9 +966,10 @@ def report_view(request):
 			)
 			overall_status = status_counts[0]['mastery_status'] if status_counts else AssessmentResult.MASTERY_DEVELOPING
 			report_feedback, _ = LearnerReportFeedback.objects.update_or_create(
-				learner=selected_learner,
+				teacher_learner_record=selected_learner_record,
 				competency=selected_competency,
 				defaults={
+					'learner': selected_learner_record.learner_profile,
 					'teacher': request.user,
 					'feedback': teacher_feedback_text,
 					'overall_competency_status': overall_status,
@@ -973,7 +978,7 @@ def report_view(request):
 			)
 			report_feedback.assessment_results.set(results)
 			messages.success(request, 'Report saved successfully.')
-			return redirect(f"{reverse('report_view')}?learner={selected_learner.id}&competency={selected_competency.id}&view_report=1")
+			return redirect(f"{reverse('report_view')}?learner={selected_learner_record.id}&competency={selected_competency.id}&view_report=1")
 
 	return render(
 		request,
@@ -1019,7 +1024,7 @@ def feedback_view(request):
 		if subject_required:
 			return subject_required
 		active_subject = _active_subject_for_request(request)
-		results = _teacher_owned(AssessmentResult.objects.select_related('learner', 'task', 'task__subject', 'task__competency', 'created_by').all(), request.user)
+		results = _teacher_owned_results(AssessmentResult.objects.select_related('learner', 'task', 'task__subject', 'task__competency', 'created_by').all(), request.user)
 		if active_subject:
 			results = results.filter(task__subject=active_subject)
 		feedback_message = 'Showing your learner assessment feedback.'
@@ -1044,7 +1049,7 @@ def my_reports_view(request):
 		reports = (
 			LearnerReportFeedback.objects
 			.filter(learner=learner, is_available_for_learner=True)
-			.select_related('competency')
+			.select_related('competency', 'teacher_learner_record')
 			.prefetch_related('assessment_results__task__subject')
 			.order_by('-created_at')
 		)

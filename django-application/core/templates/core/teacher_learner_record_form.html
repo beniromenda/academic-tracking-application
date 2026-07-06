@@ -1,0 +1,170 @@
+{% extends 'core/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<style>
+  .teacher-learner-page {
+    width: min(100%, 1020px);
+    margin: 0 auto;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .teacher-learner-hero,
+  .teacher-learner-search,
+  .teacher-learner-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    border: 1px solid #e3ebf7;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(79, 114, 182, 0.08);
+    padding: 1.4rem 1.6rem;
+  }
+
+  .teacher-learner-hero h2,
+  .teacher-learner-search h3,
+  .teacher-learner-card h3 {
+    margin: 0;
+    color: #10264c;
+  }
+
+  .teacher-learner-hero p,
+  .teacher-learner-search p,
+  .teacher-learner-card p {
+    color: #5d739d;
+    line-height: 1.55;
+  }
+
+  .teacher-learner-search form {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .teacher-learner-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+
+  .teacher-learner-summary-item {
+    background: #fbfdff;
+    border: 1px solid #e3ebf7;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+  }
+
+  .teacher-learner-summary-item span {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #5e729a;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .teacher-learner-summary-item strong {
+    color: #10264c;
+  }
+
+  .teacher-learner-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .teacher-learner-btn,
+  .teacher-learner-btn-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0.74rem 1.1rem;
+    border-radius: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    border: 1px solid #d9e3f4;
+    background: #fff;
+    color: #20385f;
+  }
+
+  .teacher-learner-btn {
+    background: linear-gradient(90deg, #1d4ed8 0%, #2f7df6 100%);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
+  }
+
+  @media (max-width: 640px) {
+    .teacher-learner-hero,
+    .teacher-learner-search,
+    .teacher-learner-card {
+      padding: 1rem;
+      border-radius: 18px;
+    }
+  }
+</style>
+
+<section class="teacher-learner-page">
+  <section class="teacher-learner-hero">
+    <p class="section-kicker">Teacher Learner Management</p>
+    <h2>{{ title }}</h2>
+    <p>Search for an existing learner by admission number, review the learner details, then save that learner into your own teaching records.</p>
+  </section>
+
+  <section class="teacher-learner-search">
+    <h3>Find Learner</h3>
+    <form method="get">
+      <div class="form-field">
+        <label for="admission_number">Admission Number</label>
+        <input id="admission_number" name="admission_number" value="{{ admission_number }}" placeholder="Search learner by admission number" />
+      </div>
+      <div class="teacher-learner-actions">
+        <button type="submit" class="teacher-learner-btn">Search Learner</button>
+        <a href="{% url 'learner_create' %}" class="teacher-learner-btn-link">Clear</a>
+      </div>
+    </form>
+  </section>
+
+  {% if learner %}
+  <section class="teacher-learner-card">
+    <h3>Learner Details</h3>
+    <div class="teacher-learner-summary">
+      <div class="teacher-learner-summary-item">
+        <span>Admission Number</span>
+        <strong>{{ learner.admission_number }}</strong>
+      </div>
+      <div class="teacher-learner-summary-item">
+        <span>Full Name</span>
+        <strong>{{ learner.full_name }}</strong>
+      </div>
+      <div class="teacher-learner-summary-item">
+        <span>Gender</span>
+        <strong>{{ learner.gender }}</strong>
+      </div>
+      <div class="teacher-learner-summary-item">
+        <span>Class</span>
+        <strong>{{ learner.class_name }}</strong>
+      </div>
+    </div>
+
+    {% if learner.user_account %}
+    <p style="margin-top:1rem;"><strong>Learner username:</strong> {{ learner.user_account.user.username }}</p>
+    {% else %}
+    <div class="message info" style="margin-top:1rem;">This learner does not have a login account linked yet. An administrator should create the learner account first.</div>
+    {% endif %}
+
+    {% if existing_record %}
+    <div class="message info" style="margin-top:1rem;">This learner is already in your records.</div>
+    {% elif learner.user_account %}
+    <form method="post" style="margin-top:1rem;">
+      {% csrf_token %}
+      <input type="hidden" name="admission_number" value="{{ admission_number }}" />
+      <div class="teacher-learner-actions">
+        <button type="submit" class="teacher-learner-btn">Save Learner Record</button>
+        <a href="{% url 'learner_list' %}" class="teacher-learner-btn-link">Cancel</a>
+      </div>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AssessmentResult, AssessmentTask, Competency, LearnerProfile, LearnerReportFeedback, UserAccount
+from .models import AssessmentResult, AssessmentTask, Competency, LearnerProfile, LearnerReportFeedback, TeacherLearnerRecord, UserAccount
 
 
 @admin.register(UserAccount)
@@ -15,6 +15,13 @@ class LearnerProfileAdmin(admin.ModelAdmin):
 	list_display = ('admission_number', 'full_name', 'gender', 'class_name')
 	list_filter = ('gender', 'class_name')
 	search_fields = ('admission_number', 'full_name', 'class_name')
+
+
+@admin.register(TeacherLearnerRecord)
+class TeacherLearnerRecordAdmin(admin.ModelAdmin):
+	list_display = ('teacher', 'learner_profile', 'created_at')
+	list_filter = ('teacher',)
+	search_fields = ('teacher__username', 'learner_profile__full_name', 'learner_profile__admission_number')
 
 
 @admin.register(Competency)
@@ -32,13 +39,13 @@ class AssessmentTaskAdmin(admin.ModelAdmin):
 
 @admin.register(AssessmentResult)
 class AssessmentResultAdmin(admin.ModelAdmin):
-	list_display = ('learner', 'task', 'created_by', 'score', 'cbc_rating', 'mastery_status', 'created_at')
+	list_display = ('learner', 'teacher_learner_record', 'task', 'created_by', 'score', 'cbc_rating', 'mastery_status', 'created_at')
 	list_filter = ('mastery_status', 'cbc_rating', 'task__competency')
 	search_fields = ('learner__full_name', 'task__task_name', 'cbc_rating')
 
 
 @admin.register(LearnerReportFeedback)
 class LearnerReportFeedbackAdmin(admin.ModelAdmin):
-	list_display = ('learner', 'competency', 'teacher', 'overall_competency_status', 'is_available_for_learner', 'updated_at')
+	list_display = ('learner', 'teacher_learner_record', 'competency', 'teacher', 'overall_competency_status', 'is_available_for_learner', 'updated_at')
 	list_filter = ('overall_competency_status', 'is_available_for_learner', 'competency')
 	search_fields = ('learner__full_name', 'competency__competency_code', 'competency__competency_name', 'teacher__username')

@@ -114,55 +114,12 @@
   <section class="learner-account-hero">
     <p class="section-kicker">Admin Control</p>
     <h2>Create Learner Account</h2>
-    <p>Search by admission number, confirm the learner profile, then create a login account linked to that learner only.</p>
+    <p>Create the master learner record and login account here. Teachers will later search this learner by admission number and save the learner into their own workspace.</p>
   </section>
 
-  <section class="learner-account-search">
-    <h3>Find Learner</h3>
-    <form method="get">
-      <div class="learner-account-search-row">
-        <div class="form-field">
-          <label for="admission_number">Admission Number</label>
-          <input id="admission_number" name="admission_number" value="{{ admission_number }}" placeholder="Search learner by admission number" />
-        </div>
-      </div>
-      <div class="learner-account-actions">
-        <button type="submit" class="learner-account-btn">Search Learner</button>
-        <a href="{% url 'learner_account_create' %}" class="learner-account-btn-link">Clear</a>
-      </div>
-    </form>
-  </section>
-
-  {% if learner %}
   <section class="learner-account-card">
-    <h3>Learner Profile</h3>
-    <div class="learner-account-summary">
-      <div class="learner-account-summary-item">
-        <span>Learner ID</span>
-        <strong>{{ learner.id }}</strong>
-      </div>
-      <div class="learner-account-summary-item">
-        <span>Admission Number</span>
-        <strong>{{ learner.admission_number }}</strong>
-      </div>
-      <div class="learner-account-summary-item">
-        <span>Full Name</span>
-        <strong>{{ learner.full_name }}</strong>
-      </div>
-      <div class="learner-account-summary-item">
-        <span>Class</span>
-        <strong>{{ learner.class_name }}</strong>
-      </div>
-    </div>
-
-    {% if learner.user_account %}
-    <div class="message info" style="margin-top: 1rem;">
-      This learner already has an account linked to the profile.
-    </div>
-    {% else %}
     <form method="post" style="margin-top: 1rem;">
       {% csrf_token %}
-      <input type="hidden" name="admission_number" value="{{ admission_number }}" />
 
       {% if form.non_field_errors %}
       <div class="message error">{{ form.non_field_errors }}</div>
@@ -185,8 +142,6 @@
         <a href="{% url 'user_list' %}" class="learner-account-btn-link">Cancel</a>
       </div>
     </form>
-    {% endif %}
   </section>
-  {% endif %}
 </section>
 {% endblock %}

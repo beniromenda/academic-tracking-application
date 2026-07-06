@@ -137,7 +137,7 @@
           <td>{{ row.report.competency.competency_name }}</td>
           <td>{{ row.report.created_at|date:'d M Y' }}</td>
           <td>
-            <a class="my-reports-view" href="{% url 'report_view' %}?competency={{ row.report.competency_id }}&view_report=1">View</a>
+            <a class="my-reports-view" href="{% url 'report_view' %}?report={{ row.report.id }}&view_report=1">View</a>
           </td>
         </tr>
         {% empty %}

@@ -241,9 +241,9 @@
   <div class="learners-hero__copy">
     <p class="learners-hero__eyebrow">Teacher Learner Management</p>
     <h2>Manage Learner Records</h2>
-    <p>View, manage and organize learner records to support effective teaching and learning.</p>
+    <p>Search and save admin-created learner accounts into your own teaching workspace, then manage only your learner records.</p>
     <div class="learners-hero__actions">
-      <a class="learners-create-btn" href="{% url 'learner_create' %}">+ Create Learner</a>
+      <a class="learners-create-btn" href="{% url 'learner_create' %}">+ Add Existing Learner</a>
     </div>
   </div>
 </section>
@@ -274,24 +274,25 @@
         <th>Full Name</th>
         <th>Gender</th>
         <th>Class</th>
+        <th>Account Status</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for learner in learners %}
       <tr>
-        <td>{{ learner.admission_number }}</td>
-        <td>{{ learner.full_name }}</td>
-        <td>{{ learner.gender }}</td>
-        <td>{{ learner.class_name }}</td>
+        <td>{{ learner.learner_profile.admission_number }}</td>
+        <td>{{ learner.learner_profile.full_name }}</td>
+        <td>{{ learner.learner_profile.gender }}</td>
+        <td>{{ learner.learner_profile.class_name }}</td>
+        <td>{{ learner.learner_profile.user_account.status|default:'No account' }}</td>
         <td>
-          <a class="learner-action learner-action--edit" href="{% url 'learner_update' learner.id %}">Edit</a>
-          <a class="learner-action learner-action--delete" href="{% url 'learner_delete' learner.id %}">Delete</a>
+          <a class="learner-action learner-action--delete" href="{% url 'learner_delete' learner.id %}">Remove</a>
         </td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="5" class="learners-empty">No learners found.</td>
+        <td colspan="6" class="learners-empty">No learners found.</td>
       </tr>
       {% endfor %}
     </tbody>

@@ -3,7 +3,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from .models import AssessmentResult, AssessmentTask, Competency, LearnerProfile, Subject, UserAccount
+from .models import AssessmentResult, AssessmentTask, Competency, LearnerProfile, Subject, TeacherLearnerRecord, UserAccount
 
 
 ACCOUNT_ROLE_CHOICES = [
@@ -135,6 +135,10 @@ class TeacherAccountCreateForm(forms.Form):
 
 
 class LearnerAccountCreateForm(forms.Form):
+    admission_number = forms.CharField(max_length=20)
+    full_name = forms.CharField(max_length=100)
+    gender = forms.ChoiceField(choices=LearnerProfile.GENDER_CHOICES)
+    class_name = forms.CharField(max_length=50)
     username = forms.CharField(max_length=150)
     email = forms.EmailField(
         required=True,
@@ -160,6 +164,24 @@ class LearnerAccountCreateForm(forms.Form):
             raise forms.ValidationError('This username is already in use.')
         return username
 
+    def clean_admission_number(self):
+        admission_number = self.cleaned_data['admission_number'].strip()
+        if LearnerProfile.objects.filter(admission_number__iexact=admission_number).exists():
+            raise forms.ValidationError('This admission number is already in use.')
+        return admission_number
+
+    def clean_full_name(self):
+        full_name = self.cleaned_data['full_name'].strip()
+        if not full_name:
+            raise forms.ValidationError('Full name is required.')
+        return full_name
+
+    def clean_class_name(self):
+        class_name = self.cleaned_data['class_name'].strip()
+        if not class_name:
+            raise forms.ValidationError('Class name is required.')
+        return class_name
+
     def clean_email(self):
         email = self.cleaned_data['email'].strip().lower()
         if User.objects.filter(email__iexact=email).exists():
@@ -180,8 +202,8 @@ class LearnerAccountCreateForm(forms.Form):
             self.add_error('confirm_password', 'Password and confirm password do not match.')
         return cleaned_data
 
-    def save(self, learner):
-        full_name = learner.full_name.strip()
+    def save(self, created_by=None):
+        full_name = self.cleaned_data['full_name'].strip()
         first_name, _, last_name = full_name.partition(' ')
         user = User.objects.create_user(
             username=self.cleaned_data['username'].strip(),
@@ -198,9 +220,15 @@ class LearnerAccountCreateForm(forms.Form):
             role=UserAccount.ROLE_LEARNER,
             status=self.cleaned_data['status'],
         )
-        learner.user_account = account
-        learner.save(update_fields=['user_account'])
-        return account
+        learner = LearnerProfile.objects.create(
+            user_account=account,
+            created_by=created_by,
+            admission_number=self.cleaned_data['admission_number'],
+            full_name=full_name,
+            gender=self.cleaned_data['gender'],
+            class_name=self.cleaned_data['class_name'],
+        )
+        return learner
 
 
 class UserAccountCreateForm(forms.Form):
@@ -442,15 +470,16 @@ class AssessmentTaskForm(forms.ModelForm):
 class AssessmentResultForm(forms.ModelForm):
     def __init__(self, *args, active_subject=None, current_user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        learners = LearnerProfile.objects.order_by('full_name')
+        learner_records = TeacherLearnerRecord.objects.select_related('learner_profile').order_by('learner_profile__full_name')
         tasks = AssessmentTask.objects.select_related('competency').order_by('task_name')
         if current_user and hasattr(current_user, 'account') and getattr(current_user.account, 'role', None) == UserAccount.ROLE_TEACHER:
-            learners = learners.filter(created_by=current_user)
+            learner_records = learner_records.filter(teacher=current_user)
             tasks = tasks.filter(created_by=current_user)
             if self.instance and self.instance.pk:
-                learners = learners | LearnerProfile.objects.filter(pk=self.instance.learner_id)
+                learner_records = learner_records | TeacherLearnerRecord.objects.filter(pk=self.instance.teacher_learner_record_id)
                 tasks = tasks | AssessmentTask.objects.filter(pk=self.instance.task_id)
-        self.fields['learner'].queryset = learners.distinct()
+        self.fields['teacher_learner_record'].queryset = learner_records.distinct()
+        self.fields['teacher_learner_record'].label = 'Learner'
         self.fields['task'].queryset = tasks.distinct()
         if active_subject:
             tasks = AssessmentTask.objects.filter(subject=active_subject)
@@ -462,7 +491,7 @@ class AssessmentResultForm(forms.ModelForm):
 
     class Meta:
         model = AssessmentResult
-        fields = ['learner', 'task', 'score', 'cbc_rating', 'mastery_status']
+        fields = ['teacher_learner_record', 'task', 'score', 'cbc_rating', 'mastery_status']
         labels = {
             'cbc_rating': 'CBC Rating',
             'mastery_status': 'Mastery Status',
@@ -473,10 +502,10 @@ class AssessmentResultForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        learner = cleaned_data.get('learner')
+        teacher_learner_record = cleaned_data.get('teacher_learner_record')
         task = cleaned_data.get('task')
-        if learner and task:
-            existing = AssessmentResult.objects.filter(learner=learner, task=task)
+        if teacher_learner_record and task:
+            existing = AssessmentResult.objects.filter(teacher_learner_record=teacher_learner_record, task=task)
             if self.instance.pk:
                 existing = existing.exclude(pk=self.instance.pk)
             if existing.exists():
