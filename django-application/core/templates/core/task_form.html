@@ -1,0 +1,203 @@
+{% extends 'core/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<style>
+  .task-form-page {
+    width: min(100%, 1020px);
+    margin: 0 auto;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .task-form-hero,
+  .task-form-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    border: 1px solid #e3ebf7;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(79, 114, 182, 0.08);
+  }
+
+  .task-form-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.6rem 1.8rem;
+  }
+
+  .task-form-hero__copy h2 {
+    margin: 0;
+    color: #10264c;
+    font-size: clamp(2rem, 3vw, 2.7rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  .task-form-hero__copy p {
+    margin: 0.65rem 0 0;
+    color: #5d739d;
+    max-width: 44rem;
+    line-height: 1.55;
+  }
+
+  .task-form-hero__eyebrow {
+    margin: 0 0 0.45rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: #3f60ad;
+  }
+
+  .task-form-hero__art {
+    flex: 0 0 210px;
+    height: 130px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(240, 246, 255, 0.95) 0%, rgba(225, 235, 250, 0.95) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .task-form-hero__art::before,
+  .task-form-hero__art::after {
+    content: "";
+    position: absolute;
+    border-radius: 16px;
+    box-shadow: 0 12px 22px rgba(56, 94, 182, 0.12);
+  }
+
+  .task-form-hero__art::before {
+    width: 72px;
+    height: 92px;
+    right: 30px;
+    top: 18px;
+    border: 5px solid #6f8edd;
+    background: linear-gradient(180deg, #fff 0%, #f2f6ff 100%);
+  }
+
+  .task-form-hero__art::after {
+    width: 92px;
+    height: 58px;
+    left: 26px;
+    bottom: 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #eaf1ff 100%);
+  }
+
+  .task-form-card {
+    padding: 1.8rem;
+  }
+
+  .task-form-card .form-header {
+    margin-bottom: 1.1rem;
+    padding-bottom: 1rem;
+  }
+
+  .task-form-card .form-header h2 {
+    font-size: 1.7rem;
+  }
+
+  .task-form-card .form-stack {
+    max-width: 100%;
+  }
+
+  .task-form-card .form-actions {
+    justify-content: flex-end;
+  }
+
+  .task-form-card .btn {
+    min-width: 120px;
+  }
+
+  .task-form-card .actions .btn {
+    background: linear-gradient(90deg, #365596 0%, #3f60ad 100%);
+    box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
+  }
+
+  .task-form-card .actions .btn-secondary {
+    background: #ffffff;
+    color: #20385f;
+    border: 1px solid #d9e3f4;
+    box-shadow: none;
+  }
+
+  .task-form-card .form-grid {
+    gap: 1rem;
+  }
+
+  @media (max-width: 820px) {
+    .task-form-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .task-form-hero__art {
+      width: 100%;
+      flex-basis: auto;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .task-form-page {
+      width: 100%;
+    }
+
+    .task-form-hero,
+    .task-form-card {
+      padding: 1rem;
+      border-radius: 18px;
+    }
+  }
+</style>
+
+<section class="task-form-page">
+  <section class="task-form-hero">
+    <div class="task-form-hero__copy">
+      <p class="task-form-hero__eyebrow">Teacher Task Management</p>
+      <h2>{{ title }}</h2>
+      {% if title == 'Create Assessment Task - Link to Competency' %}
+      <p>Create a task and link it to an existing competency.</p>
+      {% else %}
+      <p>Edit the task details and keep it linked to the correct competency.</p>
+      {% endif %}
+    </div>
+    <div class="task-form-hero__art" aria-hidden="true"></div>
+  </section>
+
+  <section class="task-form-card">
+    <div class="panel-header form-header">
+      <div>
+        <p class="section-kicker">Academic Tracking Application</p>
+        <h2>{{ title }}</h2>
+      </div>
+    </div>
+
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="message error">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="form-grid">
+        {% for field in form.visible_fields %}
+        <div class="form-field {% if field.field.widget.input_type == 'textarea' %}form-field--full{% endif %}">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.help_text %}
+          <div class="field-help">{{ field.help_text }}</div>
+          {% endif %}
+          {% if field.errors %}
+          <div class="field-error">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="actions form-actions">
+        <button type="submit" class="btn">{{ submit_label|default:'Save' }}</button>
+        <a href="{% url cancel_url|default:'task_list' %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </section>
+</section>
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends 'core/base.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<style>
+  .admin-dashboard-page {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .admin-hero,
+  .admin-stats,
+  .admin-panel {
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    border: 1px solid #e3ebf7;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(79, 114, 182, 0.08);
+  }
+
+  .admin-hero {
+    display: block;
+    padding: 1.7rem 1.8rem;
+  }
+
+  .admin-hero__copy {
+    max-width: 42rem;
+  }
+
+  .admin-hero__eyebrow {
+    margin: 0 0 0.55rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary-blue);
+  }
+
+  .admin-hero__copy h2 {
+    margin: 0;
+    font-size: clamp(2rem, 3vw, 2.9rem);
+    line-height: 1.08;
+    color: #10264c;
+    letter-spacing: -0.03em;
+  }
+
+  .admin-hero__copy p {
+    margin: 0.8rem 0 0;
+    color: #5d739d;
+    line-height: 1.55;
+    max-width: 34rem;
+  }
+
+  .admin-hero__actions {
+    margin-top: 1.1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+  }
+
+  .admin-btn,
+  .admin-btn-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0.74rem 1.1rem;
+    border-radius: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  }
+
+  .admin-btn-link {
+    border: 1px solid #d9e3f4;
+    background: #fff;
+    color: #20385f;
+  }
+
+  .admin-btn {
+    transform: translateY(0);
+  }
+
+  .admin-btn-link:hover {
+    transform: translateY(-1px);
+    background: rgba(var(--primary-blue-rgb), 0.1);
+    border-color: rgba(var(--primary-blue-rgb), 0.25);
+    color: var(--primary-blue-hover);
+    box-shadow: 0 14px 24px rgba(var(--primary-blue-rgb), 0.16);
+  }
+
+
+  .admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .admin-stat {
+    background: #fff;
+    border: 1px solid #e3ebf7;
+    border-radius: 18px;
+    padding: 1rem;
+    box-shadow: 0 10px 24px rgba(79, 114, 182, 0.06);
+  }
+
+  .admin-stat h3 {
+    margin: 0;
+    color: #5e729a;
+    font-size: 0.84rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .admin-stat p {
+    margin: 0.6rem 0 0;
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #10264c;
+  }
+
+  @media (max-width: 640px) {
+    .admin-hero,
+    .admin-stats {
+      padding: 1rem;
+      border-radius: 18px;
+    }
+  }
+</style>
+
+<section class="admin-dashboard-page">
+  <section class="admin-hero">
+    <div class="admin-hero__copy">
+      <p class="admin-hero__eyebrow">System Administration</p>
+      <h2>Admin Dashboard</h2>
+      <p>Manage who can access the system and keep accounts active or inactive from one organized workspace.</p>
+      <div class="admin-hero__actions">
+        <a class="admin-btn btn-primary" href="{% url 'user_list' %}">Manage User Accounts</a>
+        <a class="admin-btn-link" href="{% url 'user_create' %}">Create Teacher Account</a>
+        <a class="admin-btn-link" href="{% url 'learner_account_create' %}">Create Learner Account</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="admin-stats">
+    <article class="admin-stat">
+      <h3>Total Users</h3>
+      <p>{{ user_count }}</p>
+    </article>
+    <article class="admin-stat">
+      <h3>Active</h3>
+      <p>{{ active_user_count }}</p>
+    </article>
+    <article class="admin-stat">
+      <h3>Inactive</h3>
+      <p>{{ inactive_user_count }}</p>
+    </article>
+    <article class="admin-stat">
+      <h3>Teachers</h3>
+      <p>{{ teacher_count }}</p>
+    </article>
+    <article class="admin-stat">
+      <h3>Learners</h3>
+      <p>{{ learner_count }}</p>
+    </article>
+  </section>
+</section>
+{% endblock %}

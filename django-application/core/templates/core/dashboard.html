@@ -1,127 +1,142 @@
+{% extends 'core/base.html' %}
 {% load static role_tags %}
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dashboard</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  </head>
-  <body>
-    <header class="topbar">
-      <h1>Academic Tracking Application</h1>
-      <nav>
-        <a href="{% url 'dashboard' %}">Dashboard</a>
-        <a href="{% url 'learner_list' %}">Learners</a>
-        <a href="{% url 'competency_list' %}">Competencies</a>
-        <a href="{% url 'task_list' %}">Tasks</a>
-        <a href="{% url 'result_list' %}">Results</a>
-        <a href="{% url 'report_view' %}">Reports</a>
-        <a href="{% url 'feedback_view' %}">Feedback</a>
-        {% if show_subject_switch %}
-        <a href="{% url 'subject_select' %}">Select Subject</a>
-        {% endif %} {% if user|can_manage_users %}
-        <a href="{% url 'subject_list' %}">Subjects</a>
-        <a href="{% url 'user_list' %}">Users</a>
-        {% endif %}
-      </nav>
-    </header>
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+{% if current_role != 'Learner' and not has_teacher_subjects %}
+<section class="panel">
+  <p>
+    No subjects are assigned to your account yet. You can still use the dashboard, but subject-specific pages will stay empty until an administrator assigns one.
+  </p>
+</section>
+{% endif %}
 
-    <main class="container">
-      {% if active_subject %}
-      <section class="panel">
-        <p>
-          Active subject: <strong>{{ active_subject.subject_name }}</strong>
-        </p>
-      </section>
+<section class="panel dashboard-hero dashboard-hero--split">
+  <div class="dashboard-hero__copy">
+    <p class="section-kicker">
+      {% if current_role == 'Learner' %}Learner Dashboard{% else %}Teacher Dashboard{% endif %}
+    </p>
+    <h2>
+      {% if current_role == 'Learner' %}
+      Welcome{% if learner_profile %}, {{ learner_profile.full_name }}{% endif %}
+      {% else %}
+      Manage your CBC competency workflow
       {% endif %}
-      <section class="grid-cards">
-        <article class="card">
-          <h3>Learners</h3>
-          <p>{{ learner_count }}</p>
-        </article>
-        <article class="card">
-          <h3>Competencies</h3>
-          <p>{{ competency_count }}</p>
-        </article>
-        <article class="card">
-          <h3>Tasks</h3>
-          <p>{{ task_count }}</p>
-        </article>
-        <article class="card">
-          <h3>Results</h3>
-          <p>{{ result_count }}</p>
-        </article>
-        <article class="card">
-          <h3>Average Score</h3>
-          <p>{{ overall_average }}</p>
-        </article>
-      </section>
+    </h2>
+    <p>
+      {% if current_role == 'Learner' %}
+      Review your assessment feedback and progress summary here.
+      {% else %}
+      Track learners, competencies, tasks, results, and reports from one organized workspace.
+      {% endif %}
+    </p>
+    <div class="quick-actions">
+      {% if current_role == 'Learner' %}
+      <a class="btn" href="{% url 'feedback_view' %}">View My Feedback</a>
+      {% else %}
+      <a class="btn" href="{% url 'learner_list' %}">Manage Learners</a>
+      <a class="btn" href="{% url 'competency_list' %}">Competencies</a>
+      <a class="btn" href="{% url 'task_list' %}">Tasks</a>
+      <a class="btn" href="{% url 'result_list' %}">Results</a>
+      <a class="btn btn-secondary" href="{% url 'report_view' %}">Reports</a>
+      {% if show_subject_switch %}
+      <a class="btn btn-secondary" href="{% url 'subject_select' %}">Select Subject</a>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
 
-      <section class="panel">
-        <h2>Average Score by Competency</h2>
-        {{ competency_data|json_script:'competency-data' }}
-        <canvas id="competencyChart"></canvas>
-      </section>
+  <div class="dashboard-hero__art" aria-hidden="true">
+    <span class="dashboard-art__shape dashboard-art__shape--ring"></span>
+    <span class="dashboard-art__shape dashboard-art__shape--card"></span>
+    <span class="dashboard-art__shape dashboard-art__shape--panel"></span>
+    <span class="dashboard-art__shape dashboard-art__shape--accent"></span>
+  </div>
+</section>
 
-      <section class="panel">
-        <h2>Class Performance Snapshot</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Class</th>
-              <th>Average Score</th>
-              <th>Total Results</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in class_data %}
-            <tr>
-              <td>{{ row.class_name }}</td>
-              <td>{{ row.avg_score|default_if_none:0|floatformat:2 }}</td>
-              <td>{{ row.result_total }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="3">No assessment data available yet.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </section>
-    </main>
+<section class="grid-cards">
+  <article class="card">
+    <h3>{% if current_role == 'Learner' %}My Records{% else %}Total Learners{% endif %}</h3>
+    <p>{{ learner_count }}</p>
+  </article>
+  <article class="card">
+    <h3>Competencies</h3>
+    <p>{{ competency_count }}</p>
+  </article>
+  <article class="card">
+    <h3>Tasks</h3>
+    <p>{{ task_count }}</p>
+  </article>
+  <article class="card">
+    <h3>Results</h3>
+    <p>{{ result_count }}</p>
+  </article>
+  <article class="card">
+    <h3>{% if current_role == 'Learner' %}My Average Score{% else %}Average Score{% endif %}</h3>
+    <p>{{ overall_average }}</p>
+  </article>
+</section>
 
-    <script>
-      const competencyRaw = JSON.parse(
-        document.getElementById("competency-data").textContent,
-      );
-      const labels = competencyRaw.map((item) => item.competency_code);
-      const values = competencyRaw.map((item) =>
-        item.avg_score ? Number(item.avg_score).toFixed(2) : 0,
-      );
+<section class="panel">
+  <h2>{% if current_role == 'Learner' %}My Average Score by Competency{% else %}Average Score by Competency{% endif %}</h2>
+  {{ competency_data|json_script:'competency-data' }}
+  <canvas id="competencyChart"></canvas>
+</section>
 
-      new Chart(document.getElementById("competencyChart"), {
-        type: "bar",
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: "Average Score",
-              data: values,
-              backgroundColor: "#277da1",
-            },
-          ],
+<section class="panel">
+  <h2>Class Performance Snapshot</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Class</th>
+        <th>Average Score</th>
+        <th>Total Results</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in class_data %}
+      <tr>
+        <td>{{ row.class_name }}</td>
+        <td>{{ row.avg_score|default_if_none:0|floatformat:2 }}</td>
+        <td>{{ row.result_total }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="3">No assessment data available yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<script>
+  const competencyRaw = JSON.parse(
+    document.getElementById("competency-data").textContent,
+  );
+  const labels = competencyRaw.map((item) => item.competency_code);
+  const values = competencyRaw.map((item) =>
+    item.avg_score ? Number(item.avg_score).toFixed(2) : 0,
+  );
+
+  new Chart(document.getElementById("competencyChart"), {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: "Average Score",
+          data: values,
+          backgroundColor: "#277da1",
         },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true,
-              max: 100,
-            },
-          },
+      ],
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
         },
-      });
-    </script>
-  </body>
-</html>
+      },
+    },
+  });
+</script>
+{% endblock %}

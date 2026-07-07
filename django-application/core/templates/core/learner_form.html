@@ -1,0 +1,201 @@
+{% extends 'core/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<style>
+  .learner-form-page {
+    width: min(100%, 1020px);
+    margin: 0 auto;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .learner-form-hero,
+  .learner-form-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    border: 1px solid #e3ebf7;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(79, 114, 182, 0.08);
+  }
+
+  .learner-form-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.6rem 1.8rem;
+  }
+
+  .learner-form-hero__copy h2 {
+    margin: 0;
+    color: #10264c;
+    font-size: clamp(2rem, 3vw, 2.7rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  .learner-form-hero__copy p {
+    margin: 0.65rem 0 0;
+    color: #5d739d;
+    max-width: 44rem;
+    line-height: 1.55;
+  }
+
+  .learner-form-hero__eyebrow {
+    margin: 0 0 0.45rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: #3f60ad;
+  }
+
+  .learner-form-hero__art {
+    flex: 0 0 210px;
+    height: 130px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(240, 246, 255, 0.95) 0%, rgba(225, 235, 250, 0.95) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .learner-form-hero__art::before,
+  .learner-form-hero__art::after {
+    content: "";
+    position: absolute;
+    border-radius: 16px;
+    box-shadow: 0 12px 22px rgba(56, 94, 182, 0.12);
+  }
+
+  .learner-form-hero__art::before {
+    width: 72px;
+    height: 92px;
+    right: 30px;
+    top: 18px;
+    border: 5px solid #6f8edd;
+    background: linear-gradient(180deg, #fff 0%, #f2f6ff 100%);
+  }
+
+  .learner-form-hero__art::after {
+    width: 92px;
+    height: 58px;
+    left: 26px;
+    bottom: 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #eaf1ff 100%);
+  }
+
+  .learner-form-card {
+    padding: 1.8rem;
+  }
+
+  .learner-form-card .form-header {
+    margin-bottom: 1.1rem;
+    padding-bottom: 1rem;
+  }
+
+  .learner-form-card .form-header h2 {
+    font-size: 1.7rem;
+  }
+
+  .learner-form-card .form-stack {
+    max-width: 100%;
+  }
+
+  .learner-form-card .form-actions {
+    justify-content: flex-end;
+  }
+
+  .learner-form-card .btn {
+    min-width: 120px;
+  }
+
+  .learner-form-card .actions .btn {
+    background: linear-gradient(90deg, #365596 0%, #3f60ad 100%);
+    box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
+  }
+
+  .learner-form-card .actions .btn-secondary {
+    background: #ffffff;
+    color: #20385f;
+    border: 1px solid #d9e3f4;
+    box-shadow: none;
+  }
+
+  .learner-form-card .form-grid {
+    gap: 1rem;
+  }
+
+  @media (max-width: 820px) {
+    .learner-form-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .learner-form-hero__art {
+      width: 100%;
+      flex-basis: auto;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .learner-form-page {
+      width: 100%;
+    }
+
+    .learner-form-hero,
+    .learner-form-card {
+      padding: 1rem;
+      border-radius: 18px;
+    }
+  }
+</style>
+
+<section class="learner-form-page">
+  <section class="learner-form-hero">
+    <div class="learner-form-hero__copy">
+      <p class="learner-form-hero__eyebrow">Teacher Learner Management</p>
+      <h2>{{ title }}</h2>
+      <p>Add or update learner profile details. Keep the record clean and aligned with the Manage Learners workspace.</p>
+    </div>
+    <div class="learner-form-hero__art" aria-hidden="true"></div>
+  </section>
+
+  <section class="learner-form-card">
+    <div class="panel-header form-header">
+      <div>
+        <p class="section-kicker">Academic Tracking Application</p>
+        <h2>{{ title }}</h2>
+      </div>
+    </div>
+
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="message error">
+        {{ form.non_field_errors }}
+      </div>
+      {% endif %}
+
+      <div class="form-grid">
+        {% for field in form.visible_fields %}
+        <div class="form-field">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.help_text %}
+          <div class="field-help">{{ field.help_text }}</div>
+          {% endif %}
+          {% if field.errors %}
+          <div class="field-error">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="actions form-actions">
+        <button type="submit" class="btn">{{ submit_label|default:'Save' }}</button>
+        <a href="{% url cancel_url|default:'learner_list' %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </section>
+</section>
+{% endblock %}

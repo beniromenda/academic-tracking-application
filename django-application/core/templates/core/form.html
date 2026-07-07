@@ -1,52 +1,209 @@
-{% load static role_tags %}
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{ title }}</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}" />
-  </head>
-  <body>
-    <header class="topbar">
-      <h1>Academic Tracking Application</h1>
-      <nav>
-        <a href="{% url 'dashboard' %}">Dashboard</a>
-        <a href="{% url 'learner_list' %}">Learners</a>
-        <a href="{% url 'competency_list' %}">Competencies</a>
-        <a href="{% url 'task_list' %}">Tasks</a>
-        <a href="{% url 'result_list' %}">Results</a>
-        <a href="{% url 'report_view' %}">Reports</a>
-        <a href="{% url 'feedback_view' %}">Feedback</a>
-        {% if show_subject_switch %}
-        <a href="{% url 'subject_select' %}">Select Subject</a>
-        {% endif %} {% if user|can_manage_users %}
-        <a href="{% url 'subject_list' %}">Subjects</a>
-        <a href="{% url 'user_list' %}">Users</a>
-        {% endif %}
-      </nav>
-    </header>
+{% extends 'core/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<style>
+  .user-form-page {
+    width: min(100%, 1020px);
+    margin: 0 auto;
+    display: grid;
+    gap: 1rem;
+  }
 
-    <main class="container">
-      {% if active_subject %}
-      <section class="panel">
-        <p>
-          Active subject: <strong>{{ active_subject.subject_name }}</strong>
-        </p>
-      </section>
+  .user-form-hero,
+  .user-form-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    border: 1px solid #e3ebf7;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(79, 114, 182, 0.08);
+  }
+
+  .user-form-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.6rem 1.8rem;
+  }
+
+  .user-form-hero__copy h2 {
+    margin: 0;
+    color: #10264c;
+    font-size: clamp(2rem, 3vw, 2.7rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  .user-form-hero__copy p {
+    margin: 0.65rem 0 0;
+    color: #5d739d;
+    max-width: 44rem;
+    line-height: 1.55;
+  }
+
+  .user-form-hero__eyebrow {
+    margin: 0 0 0.45rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: #3f60ad;
+  }
+
+  .user-form-hero__art {
+    flex: 0 0 210px;
+    height: 130px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(240, 246, 255, 0.95) 0%, rgba(225, 235, 250, 0.95) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .user-form-hero__art::before,
+  .user-form-hero__art::after {
+    content: "";
+    position: absolute;
+    border-radius: 16px;
+    box-shadow: 0 12px 22px rgba(56, 94, 182, 0.12);
+  }
+
+  .user-form-hero__art::before {
+    width: 72px;
+    height: 92px;
+    right: 30px;
+    top: 18px;
+    border: 5px solid #6f8edd;
+    background: linear-gradient(180deg, #fff 0%, #f2f6ff 100%);
+  }
+
+  .user-form-hero__art::after {
+    width: 92px;
+    height: 58px;
+    left: 26px;
+    bottom: 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #eaf1ff 100%);
+  }
+
+  .user-form-card {
+    padding: 1.8rem;
+  }
+
+  .user-form-card .form-header {
+    margin-bottom: 1.1rem;
+    padding-bottom: 1rem;
+  }
+
+  .user-form-card .form-header h2 {
+    font-size: 1.7rem;
+  }
+
+  .user-form-card .form-stack {
+    max-width: 100%;
+  }
+
+  .user-form-card .form-actions {
+    justify-content: flex-end;
+  }
+
+  .user-form-card .btn {
+    min-width: 120px;
+  }
+
+  .user-form-card .actions .btn {
+    background: linear-gradient(90deg, #365596 0%, #3f60ad 100%);
+    box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
+  }
+
+  .user-form-card .actions .btn-secondary {
+    background: #ffffff;
+    color: #20385f;
+    border: 1px solid #d9e3f4;
+    box-shadow: none;
+  }
+
+  .user-form-card .form-grid {
+    gap: 1rem;
+  }
+
+  @media (max-width: 820px) {
+    .user-form-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .user-form-hero__art {
+      width: 100%;
+      flex-basis: auto;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .user-form-page {
+      width: 100%;
+    }
+
+    .user-form-hero,
+    .user-form-card {
+      padding: 1rem;
+      border-radius: 18px;
+    }
+  }
+</style>
+
+<section class="user-form-page">
+  <section class="user-form-hero">
+    <div class="user-form-hero__copy">
+      <p class="user-form-hero__eyebrow">Admin Control</p>
+      <h2>{{ title }}</h2>
+      {% if title == 'Create Teacher Account' %}
+      <p>Create a teacher account with a username, email, password, and active status.</p>
+      {% elif title == 'Create User Account' %}
+      <p>Create a Teacher or Learner account, then assign subjects when needed.</p>
+      {% elif title == 'Update User Account' %}
+      <p>Update the selected user’s role, status, and profile information.</p>
+      {% else %}
+      <p>Complete the form below and save your changes.</p>
       {% endif %}
-      <section class="panel narrow">
+    </div>
+    <div class="user-form-hero__art" aria-hidden="true"></div>
+  </section>
+
+  <section class="user-form-card">
+    <div class="panel-header form-header">
+      <div>
+        <p class="section-kicker">Academic Tracking Application</p>
         <h2>{{ title }}</h2>
-        <form method="post">
-          {% csrf_token %} {{ form.as_p }}
-          <div class="actions">
-            <button type="submit" class="btn">Save</button>
-            <a href="javascript:history.back()" class="btn btn-secondary"
-              >Cancel</a
-            >
-          </div>
-        </form>
-      </section>
-    </main>
-  </body>
-</html>
+      </div>
+    </div>
+
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="message error">
+        {{ form.non_field_errors }}
+      </div>
+      {% endif %}
+
+      <div class="form-grid">
+        {% for field in form.visible_fields %}
+        <div class="form-field {% if field.name == 'subjects' or field.field.widget.input_type == 'textarea' %}form-field--full{% endif %}">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.help_text %}
+          <div class="field-help">{{ field.help_text }}</div>
+          {% endif %}
+          {% if field.errors %}
+          <div class="field-error">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="actions form-actions">
+        <button type="submit" class="btn">Save</button>
+        <a href="javascript:history.back()" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </section>
+</section>
+{% endblock %}

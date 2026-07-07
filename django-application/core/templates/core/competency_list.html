@@ -1,75 +1,315 @@
-{% load static role_tags %}
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Competencies</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}" />
-  </head>
-  <body>
-    <header class="topbar">
-      <h1>Academic Tracking Application</h1>
-      <nav>
-        <a href="{% url 'dashboard' %}">Dashboard</a>
-        <a href="{% url 'learner_list' %}">Learners</a>
-        <a href="{% url 'competency_list' %}">Competencies</a>
-        <a href="{% url 'task_list' %}">Tasks</a>
-        <a href="{% url 'result_list' %}">Results</a>
-        <a href="{% url 'report_view' %}">Reports</a>
-        <a href="{% url 'feedback_view' %}">Feedback</a>
-        {% if show_subject_switch %}
-        <a href="{% url 'subject_select' %}">Select Subject</a>
-        {% endif %} {% if user|can_manage_users %}
-        <a href="{% url 'subject_list' %}">Subjects</a>
-        <a href="{% url 'user_list' %}">Users</a>
-        {% endif %}
-      </nav>
-    </header>
+{% extends 'core/base.html' %}
+{% block title %}Competencies{% endblock %}
+{% block content %}
+<style>
+  .competencies-page {
+    display: grid;
+    gap: 1rem;
+  }
 
-    <main class="container">
-      {% if active_subject %}
-      <section class="panel">
-        <p>
-          Active subject: <strong>{{ active_subject.subject_name }}</strong>
-        </p>
-      </section>
-      {% endif %}
-      <section class="panel">
-        <h2>Competencies</h2>
-        <a class="btn" href="{% url 'competency_create' %}"
-          >Create Competency</a
-        >
-        <table>
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Name</th>
-              <th>Description</th>
-              <th>Created By</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for competency in competencies %}
-            <tr>
-              <td>{{ competency.competency_code }}</td>
-              <td>{{ competency.competency_name }}</td>
-              <td>{{ competency.description|default:'-' }}</td>
-              <td>{{ competency.created_by.username }}</td>
-              <td>
-                <a href="{% url 'competency_update' competency.id %}">Edit</a> |
-                <a href="{% url 'competency_delete' competency.id %}">Delete</a>
-              </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="5">No competencies found.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </section>
-    </main>
-  </body>
-</html>
+  .competencies-hero,
+  .competencies-toolbar,
+  .competencies-table {
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    border: 1px solid #e3ebf7;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(79, 114, 182, 0.08);
+  }
+
+  .competencies-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.7rem 1.8rem;
+  }
+
+  .competencies-hero__copy {
+    max-width: 42rem;
+  }
+
+  .competencies-hero__eyebrow {
+    margin: 0 0 0.55rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #3f60ad;
+  }
+
+  .competencies-hero__copy h2 {
+    margin: 0;
+    font-size: clamp(2rem, 3vw, 2.9rem);
+    line-height: 1.08;
+    color: #10264c;
+    letter-spacing: -0.03em;
+  }
+
+  .competencies-hero__copy p {
+    margin: 0.8rem 0 0;
+    color: #5d739d;
+    line-height: 1.55;
+    max-width: 34rem;
+  }
+
+  .competencies-hero__actions {
+    margin-top: 1.1rem;
+  }
+
+  .competencies-create-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.74rem 1.1rem;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #365596 0%, #3f60ad 100%);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
+  }
+
+
+  .competencies-toolbar {
+    padding: 1rem;
+  }
+
+  .competencies-search {
+    display: flex;
+    gap: 0.75rem;
+    align-items: end;
+    flex-wrap: wrap;
+  }
+
+  .competencies-search__field {
+    flex: 1 1 320px;
+  }
+
+  .competencies-search__field label {
+    display: block;
+    margin: 0 0 0.35rem;
+    color: #20385f;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+
+  .competencies-search__field input {
+    width: 100%;
+    border: 1px solid #d8e4f5;
+    border-radius: 12px;
+    padding: 0.78rem 0.9rem;
+    background: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  .competencies-search__field input:focus {
+    outline: none;
+    border-color: #3f60ad;
+    box-shadow: 0 0 0 4px rgba(47, 125, 246, 0.12);
+  }
+
+  .competencies-search__actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.7rem;
+  }
+
+  .competencies-btn,
+  .competencies-btn-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0.7rem 1rem;
+    border-radius: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid #d9e3f4;
+    background: #fff;
+    color: #20385f;
+  }
+
+  .competencies-btn {
+    background: linear-gradient(90deg, #365596 0%, #3f60ad 100%);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
+  }
+
+  .competencies-table {
+    overflow: hidden;
+  }
+
+  .competencies-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .competencies-table th,
+  .competencies-table td {
+    padding: 0.85rem 0.9rem;
+    border-bottom: 1px solid #e8edf2;
+    text-align: left;
+  }
+
+  .competencies-table th {
+    background: linear-gradient(180deg, #fbfdff 0%, #f5f9ff 100%);
+    color: #20385f;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.75rem;
+  }
+
+  .competencies-table tbody tr:nth-child(even) td {
+    background: #fbfdff;
+  }
+
+  .competencies-table tbody tr:hover td {
+    background: #f2f7ff;
+  }
+
+  .competency-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 84px;
+    padding: 0.5rem 0.85rem;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+  }
+
+  .competency-action--edit {
+    background: rgba(34, 197, 94, 0.12);
+    color: #047857;
+    border: 1px solid rgba(34, 197, 94, 0.18);
+  }
+
+  .competency-action--delete {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.16);
+  }
+
+  .competencies-empty {
+    padding: 1rem;
+    color: #5d739d;
+  }
+
+  @media (max-width: 980px) {
+    .competencies-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .competencies-search__actions {
+      margin-left: 0;
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .competencies-hero,
+    .competencies-toolbar {
+      padding: 1rem;
+    }
+
+    .competencies-search__field,
+    .competencies-search__actions,
+    .competencies-btn,
+    .competencies-btn-link {
+      width: 100%;
+    }
+
+    .competencies-search__actions {
+      flex-direction: column;
+    }
+  }
+</style>
+<section class="competencies-page">
+{% if active_subject %}
+<section class="panel">
+  <p>
+    Active subject: <strong>{{ active_subject.subject_name }}</strong>
+  </p>
+</section>
+{% endif %}
+<section class="competencies-hero">
+  <div class="competencies-hero__copy">
+    <p class="competencies-hero__eyebrow">Curriculum Competency Catalog</p>
+    <h2>{% if can_manage_competencies %}Manage Competency Records{% else %}View Competency Records{% endif %}</h2>
+    <p>{% if can_manage_competencies %}Create and maintain predefined curriculum competencies and learning outcomes.{% else %}Browse predefined curriculum competencies and learning outcomes for assignment and assessment tasks.{% endif %}</p>
+    {% if can_manage_competencies %}
+    <div class="competencies-hero__actions">
+      <a class="competencies-create-btn" href="{% url 'competency_create' %}">+ Create Competency</a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="competencies-toolbar">
+  <form method="get" class="competencies-search">
+    <div class="competencies-search__field">
+      <label for="q">Search</label>
+      <input
+        id="q"
+        name="q"
+        value="{{ query }}"
+        placeholder="Search by competency code, name or outcome..."
+      />
+    </div>
+    <div class="competencies-search__actions">
+      <button type="submit" class="competencies-btn">Search</button>
+      <a class="competencies-btn-link" href="{% url 'competency_list' %}">Clear</a>
+    </div>
+  </form>
+</section>
+
+<section class="competencies-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Competency Code</th>
+        <th>Competency Name</th>
+        <th>Learning Outcome</th>
+        {% if is_teacher_view %}
+        <th>Assigned Learners</th>
+        <th>View</th>
+        {% endif %}
+        {% if can_manage_competencies %}
+        <th>Actions</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for competency in competencies %}
+      <tr>
+        <td>{{ competency.competency_code }}</td>
+        <td>{{ competency.competency_name }}</td>
+        <td>{{ competency.learning_outcome|default:'-' }}</td>
+        {% if is_teacher_view %}
+        <td>{{ competency.assigned_learner_count|default:0 }}</td>
+        <td>
+          <a class="competency-action competency-action--edit" href="{% url 'competency_assigned_learners' competency.id %}">View</a>
+        </td>
+        {% endif %}
+        {% if can_manage_competencies %}
+        <td>
+          <a class="competency-action competency-action--edit" href="{% url 'competency_update' competency.id %}">Edit</a>
+          <a class="competency-action competency-action--delete" href="{% url 'competency_delete' competency.id %}">Delete</a>
+        </td>
+        {% endif %}
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="{% if can_manage_competencies %}4{% elif is_teacher_view %}5{% else %}3{% endif %}" class="competencies-empty">No competencies found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+</section>
+{% endblock %}

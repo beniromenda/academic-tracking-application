@@ -1,74 +1,45 @@
-{% load static role_tags %}
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Assessment Feedback</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}" />
-  </head>
-  <body>
-    <header class="topbar">
-      <h1>Academic Tracking Application</h1>
-      <nav>
-        <a href="{% url 'dashboard' %}">Dashboard</a>
-        <a href="{% url 'learner_list' %}">Learners</a>
-        <a href="{% url 'competency_list' %}">Competencies</a>
-        <a href="{% url 'task_list' %}">Tasks</a>
-        <a href="{% url 'result_list' %}">Results</a>
-        <a href="{% url 'report_view' %}">Reports</a>
-        <a href="{% url 'feedback_view' %}">Feedback</a>
-        {% if show_subject_switch %}
-        <a href="{% url 'subject_select' %}">Select Subject</a>
-        {% endif %} {% if user|can_manage_users %}
-        <a href="{% url 'subject_list' %}">Subjects</a>
-        <a href="{% url 'user_list' %}">Users</a>
-        {% endif %}
-      </nav>
-    </header>
-
-    <main class="container">
-      {% if active_subject %}
-      <section class="panel">
-        <p>
-          Active subject: <strong>{{ active_subject.subject_name }}</strong>
-        </p>
-      </section>
-      {% endif %}
-      <section class="panel">
-        <h2>Assessment Feedback</h2>
-        <p>{{ feedback_message }}</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Learner</th>
-              <th>Task</th>
-              <th>Competency</th>
-              <th>Score</th>
-              <th>Rating</th>
-              <th>Feedback</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for result in results %}
-            <tr>
-              <td>{{ result.learner.full_name }}</td>
-              <td>{{ result.task.task_title }}</td>
-              <td>{{ result.task.competency.competency_name }}</td>
-              <td>{{ result.score }}</td>
-              <td>{{ result.rating }}</td>
-              <td>{{ result.feedback|default:'-' }}</td>
-              <td>{{ result.assessment_date }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="7">No feedback records available.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </section>
-    </main>
-  </body>
-</html>
+{% extends 'core/base.html' %}
+{% block title %}Assessment Feedback{% endblock %}
+{% block content %}
+{% if active_subject %}
+<section class="panel">
+  <p>
+    Active subject: <strong>{{ active_subject.subject_name }}</strong>
+  </p>
+</section>
+{% endif %}
+<section class="panel">
+  <h2>Assessment Feedback</h2>
+  <p>{{ feedback_message }}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Learner</th>
+        <th>Task</th>
+        <th>Competency</th>
+        <th>Score</th>
+        <th>CBC Rating</th>
+        <th>Feedback</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for result in results %}
+      <tr>
+        <td>{{ result.learner.full_name }}</td>
+        <td>{{ result.task.task_name }}</td>
+        <td>{{ result.task.competency.competency_name }}</td>
+        <td>{{ result.score }}</td>
+        <td>{{ result.cbc_rating }}</td>
+        <td>{{ result.feedback|default:'-' }}</td>
+        <td>{{ result.created_at|date:'Y-m-d' }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7">No feedback records available.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

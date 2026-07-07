@@ -1,40 +1,47 @@
-{% load static role_tags %}
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Select Subject</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}" />
-  </head>
-  <body>
-    <header class="topbar">
-      <h1>Academic Tracking Application</h1>
-      <nav>
-        <a href="{% url 'dashboard' %}">Dashboard</a>
-        <a href="{% url 'subject_select' %}">Select Subject</a>
-        <form method="post" action="{% url 'logout' %}" class="inline-form">
-          {% csrf_token %}
-          <button type="submit" class="link-button">Logout</button>
-        </form>
-      </nav>
-    </header>
+{% extends 'core/base.html' %}
+{% block title %}Select Subject{% endblock %}
+{% block content %}
+<section class="panel dashboard-hero">
+  <div>
+    <p class="section-kicker">Teacher Subject Scope</p>
+    <h2>Select an active subject</h2>
+    <p>
+      {% if no_subjects_assigned %}
+      No subjects are assigned to your account yet. Contact an administrator to be assigned one.
+      {% else %}
+      Choose the subject you want to manage for this session.
+      {% endif %}
+    </p>
+  </div>
+  <div class="quick-actions">
+    <a class="btn btn-secondary" href="{% url 'dashboard' %}">Back to Dashboard</a>
+  </div>
+</section>
 
-    <main class="container">
-      <section class="panel narrow">
-        <h2>Select Working Subject</h2>
-        {% if active_subject %}
-        <p>
-          Current subject: <strong>{{ active_subject.subject_name }}</strong>
-        </p>
-        {% endif %}
-        <form method="post">
-          {% csrf_token %} {{ form.as_p }}
-          <div class="actions">
-            <button type="submit" class="btn">Continue</button>
-          </div>
-        </form>
-      </section>
-    </main>
-  </body>
-</html>
+{% if no_subjects_assigned %}
+<section class="panel">
+  <div class="empty-state">
+    <p>
+      The dashboard is still available, but teacher subject-specific pages will remain inactive until a subject is assigned.
+    </p>
+  </div>
+</section>
+{% else %}
+<section class="panel">
+  <form method="post" class="form-shell form-grid">
+    {% csrf_token %}
+    <div class="form-group full-width">
+      <label for="subject">Choose subject</label>
+      <select id="subject" name="subject_id">
+        {% for subject in subjects %}
+        <option value="{{ subject.id }}">{{ subject.subject_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-actions full-width">
+      <button type="submit" class="btn">Continue</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

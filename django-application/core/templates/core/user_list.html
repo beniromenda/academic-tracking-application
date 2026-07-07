@@ -1,79 +1,301 @@
-{% load static role_tags %}
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>User Accounts</title>
-    <link rel="stylesheet" href="{% static 'core/style.css' %}" />
-  </head>
-  <body>
-    <header class="topbar">
-      <h1>Academic Tracking Application</h1>
-      <nav>
-        <a href="{% url 'dashboard' %}">Dashboard</a>
-        <a href="{% url 'learner_list' %}">Learners</a>
-        <a href="{% url 'competency_list' %}">Competencies</a>
-        <a href="{% url 'task_list' %}">Tasks</a>
-        <a href="{% url 'result_list' %}">Results</a>
-        <a href="{% url 'report_view' %}">Reports</a>
-        <a href="{% url 'feedback_view' %}">Feedback</a>
-        {% if show_subject_switch %}
-        <a href="{% url 'subject_select' %}">Select Subject</a>
-        {% endif %} {% if user|can_manage_users %}
-        <a href="{% url 'subject_list' %}">Subjects</a>
-        <a href="{% url 'user_list' %}">Users</a>
-        {% endif %}
-      </nav>
-    </header>
+{% extends 'core/base.html' %}
+{% block title %}User Accounts{% endblock %}
+{% block content %}
+<style>
+  .users-page {
+    display: grid;
+    gap: 1rem;
+  }
 
-    <main class="container">
-      {% if active_subject %}
-      <section class="panel">
-        <p>
-          Active subject: <strong>{{ active_subject.subject_name }}</strong>
-        </p>
-      </section>
-      {% endif %}
-      <section class="panel">
-        <h2>User Accounts</h2>
-        <a class="btn" href="{% url 'user_create' %}">Create User</a>
-        <table>
-          <thead>
-            <tr>
-              <th>Username</th>
-              <th>Full Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Subjects</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in user_rows %}
-            <tr>
-              <td>{{ row.user_obj.username }}</td>
-              <td>
-                {{ row.user_obj.first_name }} {{ row.user_obj.last_name }}
-              </td>
-              <td>{{ row.user_obj.email }}</td>
-              <td>{{ row.role|default:'N/A' }}</td>
-              <td>{{ row.subjects|default:'-' }}</td>
-              <td>{{ row.status|default:'N/A' }}</td>
-              <td>
-                <a href="{% url 'user_update' row.user_obj.id %}">Edit</a> |
-                <a href="{% url 'user_delete' row.user_obj.id %}">Delete</a>
-              </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="7">No users found.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </section>
-    </main>
-  </body>
-</html>
+  .users-hero,
+  .users-toolbar,
+  .users-table {
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    border: 1px solid #e3ebf7;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(79, 114, 182, 0.08);
+  }
+
+  .users-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.7rem 1.8rem;
+  }
+
+  .users-hero__copy {
+    max-width: 42rem;
+  }
+
+  .users-hero__eyebrow {
+    margin: 0 0 0.55rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #3f60ad;
+  }
+
+  .users-hero__copy h2 {
+    margin: 0;
+    font-size: clamp(2rem, 3vw, 2.9rem);
+    line-height: 1.08;
+    color: #10264c;
+    letter-spacing: -0.03em;
+  }
+
+  .users-hero__copy p {
+    margin: 0.8rem 0 0;
+    color: #5d739d;
+    line-height: 1.55;
+    max-width: 34rem;
+  }
+
+  .users-hero__actions {
+    margin-top: 1.1rem;
+  }
+
+  .users-create-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.74rem 1.1rem;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #365596 0%, #3f60ad 100%);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    border: 1px solid transparent;
+    box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
+    transition:
+      transform 0.16s ease,
+      box-shadow 0.16s ease,
+      background-color 0.16s ease,
+      color 0.16s ease,
+      border-color 0.16s ease;
+  }
+
+  .users-create-btn:hover {
+    transform: translateY(-1px);
+    color: #ffffff;
+    box-shadow: 0 16px 26px rgba(47, 125, 246, 0.26);
+  }
+
+  .users-toolbar {
+    padding: 1rem;
+  }
+
+  .users-search {
+    display: flex;
+    gap: 0.75rem;
+    align-items: end;
+    flex-wrap: wrap;
+  }
+
+  .users-search__field {
+    flex: 1 1 320px;
+  }
+
+  .users-search__field label {
+    display: block;
+    margin: 0 0 0.35rem;
+    color: #20385f;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+
+  .users-search__field input {
+    width: 100%;
+    border: 1px solid #d8e4f5;
+    border-radius: 12px;
+    padding: 0.78rem 0.9rem;
+    background: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  .users-search__field input:focus {
+    outline: none;
+    border-color: #3f60ad;
+    box-shadow: 0 0 0 4px rgba(47, 125, 246, 0.12);
+  }
+
+  .users-search__actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.7rem;
+  }
+
+  .users-btn,
+  .users-btn-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0.7rem 1rem;
+    border-radius: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid #d9e3f4;
+    background: #fff;
+    color: #20385f;
+  }
+
+  .users-btn {
+    background: linear-gradient(90deg, #365596 0%, #3f60ad 100%);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
+  }
+
+  .users-table {
+    overflow: hidden;
+  }
+
+  .users-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .users-table th,
+  .users-table td {
+    padding: 0.85rem 0.9rem;
+    border-bottom: 1px solid #e8edf2;
+    text-align: left;
+  }
+
+  .users-table th {
+    background: linear-gradient(180deg, #fbfdff 0%, #f5f9ff 100%);
+    color: #20385f;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.75rem;
+  }
+
+  .users-table tbody tr:nth-child(even) td {
+    background: #fbfdff;
+  }
+
+  .users-table tbody tr:hover td {
+    background: #f2f7ff;
+  }
+
+  .users-empty {
+    text-align: center;
+    padding: 1.5rem;
+    color: #5d739d;
+  }
+
+  @media (max-width: 820px) {
+    .users-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .users-hero,
+    .users-toolbar {
+      padding: 1rem;
+      border-radius: 18px;
+    }
+  }
+</style>
+
+<section class="users-page">
+  <section class="users-hero">
+    <div class="users-hero__copy">
+      <p class="users-hero__eyebrow">Admin Control</p>
+      <h2>User Accounts</h2>
+      <p>
+        Manage user access, keep accounts active or inactive, and update roles
+        from one clean workspace.
+      </p>
+      <div class="users-hero__actions">
+        <a class="users-create-btn" href="{% url 'user_create' %}"
+          >Create Teacher Account</a
+        >
+        <a class="users-btn-link" href="{% url 'learner_account_create' %}"
+          >Create Learner Account</a
+        >
+      </div>
+    </div>
+  </section>
+
+  <section class="users-toolbar">
+    <form method="get" class="users-search">
+      <div class="users-search__field">
+        <label for="q">Search users</label>
+        <input
+          id="q"
+          name="q"
+          value="{{ query }}"
+          placeholder="Search by name or email"
+        />
+      </div>
+      <div class="users-search__actions">
+        <button class="users-btn" type="submit">Search</button>
+        <a href="{% url 'user_list' %}" class="users-btn-link">Clear</a>
+      </div>
+    </form>
+  </section>
+
+  {% if not query %}
+  <div class="message info">
+    Search to narrow users quickly, or manage accounts directly from the list
+    below.
+  </div>
+  {% endif %}
+
+  <section class="users-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Full Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in user_rows %}
+        <tr>
+          <td>{{ row.user_obj.first_name }} {{ row.user_obj.last_name }}</td>
+          <td>{{ row.user_obj.email }}</td>
+          <td>{{ row.role|default:'N/A' }}</td>
+          <td>{{ row.status|default:'N/A' }}</td>
+          <td>
+            <div class="action-group">
+              <a
+                class="action-pill action-pill--edit"
+                href="{% url 'user_update' row.user_obj.id %}?q={{ query|urlencode }}"
+                >Edit</a
+              >
+              {% if row.status == 'Inactive' %}
+              <a
+                class="action-pill action-pill--activate"
+                href="{% url 'user_activate' row.user_obj.id %}?q={{ query|urlencode }}"
+                >Activate</a
+              >
+              {% else %}
+              <a
+                class="action-pill action-pill--deactivate"
+                href="{% url 'user_deactivate' row.user_obj.id %}?q={{ query|urlencode }}"
+                >Deactivate</a
+              >
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="users-empty">No users found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</section>
+{% endblock %}

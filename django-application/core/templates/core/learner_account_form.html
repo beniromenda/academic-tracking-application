@@ -1,0 +1,147 @@
+{% extends 'core/base.html' %}
+{% block title %}Create Learner Account{% endblock %}
+{% block content %}
+<style>
+  .learner-account-page {
+    width: min(100%, 1020px);
+    margin: 0 auto;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .learner-account-hero,
+  .learner-account-card,
+  .learner-account-search {
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    border: 1px solid #e3ebf7;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(79, 114, 182, 0.08);
+  }
+
+  .learner-account-hero,
+  .learner-account-search,
+  .learner-account-card {
+    padding: 1.4rem 1.6rem;
+  }
+
+  .learner-account-hero h2,
+  .learner-account-card h3,
+  .learner-account-search h3 {
+    margin: 0;
+    color: #10264c;
+  }
+
+  .learner-account-hero p,
+  .learner-account-card p,
+  .learner-account-search p {
+    color: #5d739d;
+    line-height: 1.55;
+  }
+
+  .learner-account-search form,
+  .learner-account-card form {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .learner-account-search-row,
+  .learner-account-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+
+  .learner-account-summary-item {
+    background: #fbfdff;
+    border: 1px solid #e3ebf7;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+  }
+
+  .learner-account-summary-item span {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #5e729a;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .learner-account-summary-item strong {
+    color: #10264c;
+  }
+
+  .learner-account-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .learner-account-btn,
+  .learner-account-btn-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0.74rem 1.1rem;
+    border-radius: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    border: 1px solid #d9e3f4;
+    background: #fff;
+    color: #20385f;
+  }
+
+  .learner-account-btn {
+    background: linear-gradient(90deg, #365596 0%, #3f60ad 100%);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
+  }
+
+  @media (max-width: 640px) {
+    .learner-account-hero,
+    .learner-account-search,
+    .learner-account-card {
+      padding: 1rem;
+      border-radius: 18px;
+    }
+  }
+</style>
+
+<section class="learner-account-page">
+  <section class="learner-account-hero">
+    <p class="section-kicker">Admin Control</p>
+    <h2>Create Learner Account</h2>
+    <p>Create the master learner record and login account here. Teachers will later search this learner by admission number and save the learner into their own workspace.</p>
+  </section>
+
+  <section class="learner-account-card">
+    <form method="post" style="margin-top: 1rem;">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="message error">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="form-grid">
+        {% for field in form.visible_fields %}
+        <div class="form-field">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.errors %}
+          <div class="field-error">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="learner-account-actions">
+        <button type="submit" class="learner-account-btn">Create Learner Account</button>
+        <a href="{% url 'user_list' %}" class="learner-account-btn-link">Cancel</a>
+      </div>
+    </form>
+  </section>
+</section>
+{% endblock %}

@@ -13,3 +13,12 @@ def can_manage_users(user):
         return True
     role = getattr(getattr(user, 'account', None), 'role', None)
     return role == UserAccount.ROLE_ADMINISTRATOR
+
+
+@register.filter
+def user_role(user):
+    if not getattr(user, 'is_authenticated', False):
+        return ''
+    if user.is_superuser:
+        return UserAccount.ROLE_ADMINISTRATOR
+    return getattr(getattr(user, 'account', None), 'role', '')

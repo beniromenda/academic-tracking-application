@@ -1,0 +1,39 @@
+{% extends 'core/base.html' %}
+{% block title %}Assigned Learners{% endblock %}
+{% block content %}
+<section class="panel">
+  <p class="section-kicker">Teacher Competency Browser</p>
+  <h2>{{ competency.competency_code }} - {{ competency.competency_name }}</h2>
+  <p><strong>Learning Outcome:</strong> {{ competency.learning_outcome|default:'-' }}</p>
+  <p><strong>Total Assigned Learners:</strong> {{ assigned_count }}</p>
+  <div class="actions" style="margin-top: 1rem;">
+    <a class="btn btn-secondary" href="{% url 'competency_list' %}">Back to Competencies</a>
+  </div>
+</section>
+
+<section class="panel">
+  <h3>Assigned Learners</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Admission Number</th>
+        <th>Learner Name</th>
+        <th>Class</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for record in assigned_records %}
+      <tr>
+        <td>{{ record.learner_profile.admission_number }}</td>
+        <td>{{ record.learner_profile.full_name }}</td>
+        <td>{{ record.learner_profile.class_name }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="3" class="report-empty">No learners assigned to this competency yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

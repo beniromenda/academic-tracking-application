@@ -1,0 +1,150 @@
+{% extends 'core/base.html' %}
+{% block title %}My Reports{% endblock %}
+{% block content %}
+<style>
+  .my-reports-page {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .my-reports-hero,
+  .my-reports-table {
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    border: 1px solid #e3ebf7;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(79, 114, 182, 0.08);
+  }
+
+  .my-reports-hero {
+    padding: 1.6rem 1.8rem;
+  }
+
+  .my-reports-hero__eyebrow {
+    margin: 0 0 0.55rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #3f60ad;
+  }
+
+  .my-reports-hero h2 {
+    margin: 0;
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    line-height: 1.08;
+    color: #10264c;
+    letter-spacing: -0.03em;
+  }
+
+  .my-reports-hero p {
+    margin: 0.8rem 0 0;
+    color: #5d739d;
+    line-height: 1.55;
+    max-width: 40rem;
+  }
+
+  .my-reports-table {
+    overflow: hidden;
+  }
+
+  .my-reports-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .my-reports-table th,
+  .my-reports-table td {
+    padding: 0.85rem 0.9rem;
+    border-bottom: 1px solid #e8edf2;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .my-reports-table th {
+    background: linear-gradient(180deg, #fbfdff 0%, #f5f9ff 100%);
+    color: #20385f;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.75rem;
+  }
+
+  .my-reports-table tbody tr:nth-child(even) td {
+    background: #fbfdff;
+  }
+
+  .my-reports-table tbody tr:hover td {
+    background: #f2f7ff;
+  }
+
+  .my-reports-empty {
+    text-align: center;
+    padding: 1.6rem;
+    color: #5d739d;
+  }
+
+  .my-reports-view {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0.55rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: linear-gradient(90deg, #365596 0%, #3f60ad 100%);
+    box-shadow: 0 10px 20px rgba(47, 125, 246, 0.2);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+  }
+
+  @media (max-width: 700px) {
+    .my-reports-hero,
+    .my-reports-table {
+      border-radius: 18px;
+    }
+
+    .my-reports-table {
+      overflow: auto;
+    }
+
+    .my-reports-table table {
+      min-width: 520px;
+    }
+  }
+</style>
+
+<section class="my-reports-page">
+  <section class="my-reports-hero">
+    <p class="my-reports-hero__eyebrow">Learner Portal</p>
+    <h2>My Reports</h2>
+    <p>View your saved competency progress reports and teacher feedback.</p>
+  </section>
+
+  <section class="my-reports-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Competency</th>
+          <th>Date Generated</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report_rows %}
+        <tr>
+          <td>{{ row.report.competency.competency_name }}</td>
+          <td>{{ row.report.created_at|date:'d M Y' }}</td>
+          <td>
+            <a class="my-reports-view" href="{% url 'report_view' %}?report={{ row.report.id }}&view_report=1">View</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="my-reports-empty">No saved reports are available yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</section>
+{% endblock %}
