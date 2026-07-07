@@ -470,7 +470,6 @@ class AssessmentResultForm(forms.ModelForm):
         tasks = AssessmentTask.objects.select_related('competency').order_by('task_name')
         if current_user and hasattr(current_user, 'account') and getattr(current_user.account, 'role', None) == UserAccount.ROLE_TEACHER:
             learner_records = learner_records.filter(teacher=current_user)
-            tasks = tasks.filter(created_by=current_user)
             if self.instance and self.instance.pk:
                 learner_records = learner_records | TeacherLearnerRecord.objects.filter(pk=self.instance.teacher_learner_record_id)
                 tasks = tasks | AssessmentTask.objects.filter(pk=self.instance.task_id)
@@ -496,8 +495,6 @@ class AssessmentResultForm(forms.ModelForm):
         self.fields['task'].queryset = tasks.distinct()
         if active_subject:
             tasks = AssessmentTask.objects.filter(subject=active_subject)
-            if current_user and hasattr(current_user, 'account') and getattr(current_user.account, 'role', None) == UserAccount.ROLE_TEACHER:
-                tasks = tasks.filter(created_by=current_user)
             if selected_record_id:
                 assigned_competency_ids = TeacherLearnerCompetencyAssignment.objects.filter(
                     teacher_learner_record_id=selected_record_id

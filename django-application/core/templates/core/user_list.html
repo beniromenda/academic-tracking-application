@@ -68,7 +68,12 @@
     font-weight: 700;
     border: 1px solid transparent;
     box-shadow: 0 14px 24px rgba(47, 125, 246, 0.2);
-    transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+    transition:
+      transform 0.16s ease,
+      box-shadow 0.16s ease,
+      background-color 0.16s ease,
+      color 0.16s ease,
+      border-color 0.16s ease;
   }
 
   .users-create-btn:hover {
@@ -203,10 +208,17 @@
     <div class="users-hero__copy">
       <p class="users-hero__eyebrow">Admin Control</p>
       <h2>User Accounts</h2>
-      <p>Manage user access, keep accounts active or inactive, and update roles from one clean workspace.</p>
+      <p>
+        Manage user access, keep accounts active or inactive, and update roles
+        from one clean workspace.
+      </p>
       <div class="users-hero__actions">
-        <a class="users-create-btn" href="{% url 'user_create' %}">Create Teacher Account</a>
-        <a class="users-btn-link" href="{% url 'learner_account_create' %}">Create Learner Account</a>
+        <a class="users-create-btn" href="{% url 'user_create' %}"
+          >Create Teacher Account</a
+        >
+        <a class="users-btn-link" href="{% url 'learner_account_create' %}"
+          >Create Learner Account</a
+        >
       </div>
     </div>
   </section>
@@ -215,7 +227,12 @@
     <form method="get" class="users-search">
       <div class="users-search__field">
         <label for="q">Search users</label>
-        <input id="q" name="q" value="{{ query }}" placeholder="Search by name or email" />
+        <input
+          id="q"
+          name="q"
+          value="{{ query }}"
+          placeholder="Search by name or email"
+        />
       </div>
       <div class="users-search__actions">
         <button class="users-btn" type="submit">Search</button>
@@ -226,7 +243,8 @@
 
   {% if not query %}
   <div class="message info">
-    Search first to update or deactivate an account.
+    Search to narrow users quickly, or manage accounts directly from the list
+    below.
   </div>
   {% endif %}
 
@@ -235,7 +253,6 @@
       <thead>
         <tr>
           <th>Full Name</th>
-          <th>Teacher ID</th>
           <th>Email</th>
           <th>Role</th>
           <th>Status</th>
@@ -246,27 +263,35 @@
         {% for row in user_rows %}
         <tr>
           <td>{{ row.user_obj.first_name }} {{ row.user_obj.last_name }}</td>
-          <td>{{ row.teacher_id|default:'-' }}</td>
           <td>{{ row.user_obj.email }}</td>
           <td>{{ row.role|default:'N/A' }}</td>
           <td>{{ row.status|default:'N/A' }}</td>
           <td>
-            {% if query %}
             <div class="action-group">
-              <a class="action-pill action-pill--edit" href="{% url 'user_update' row.user_obj.id %}?q={{ query|urlencode }}">Edit</a>
-              <a class="action-pill action-pill--deactivate" href="{% url 'user_deactivate' row.user_obj.id %}?q={{ query|urlencode }}">Deactivate</a>
+              <a
+                class="action-pill action-pill--edit"
+                href="{% url 'user_update' row.user_obj.id %}?q={{ query|urlencode }}"
+                >Edit</a
+              >
+              {% if row.status == 'Inactive' %}
+              <a
+                class="action-pill action-pill--activate"
+                href="{% url 'user_activate' row.user_obj.id %}?q={{ query|urlencode }}"
+                >Activate</a
+              >
+              {% else %}
+              <a
+                class="action-pill action-pill--deactivate"
+                href="{% url 'user_deactivate' row.user_obj.id %}?q={{ query|urlencode }}"
+                >Deactivate</a
+              >
+              {% endif %}
             </div>
-            {% else %}
-            <div class="action-group">
-              <span class="action-pill action-pill--disabled">Edit</span>
-              <span class="action-pill action-pill--disabled">Deactivate</span>
-            </div>
-            {% endif %}
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="6" class="users-empty">No users found.</td>
+          <td colspan="5" class="users-empty">No users found.</td>
         </tr>
         {% endfor %}
       </tbody>

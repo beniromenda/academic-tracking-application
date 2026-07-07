@@ -78,6 +78,17 @@ svg {
     color: #fff;
 }
 
+.action-pill--activate {
+    background: rgba(22, 163, 74, 0.12);
+    color: #166534;
+    border: 1px solid rgba(22, 163, 74, 0.24);
+}
+
+.action-pill--activate:hover {
+    background: #16a34a;
+    color: #fff;
+}
+
 .action-pill--disabled {
     background: #eef2f7;
     color: #97a3b2;

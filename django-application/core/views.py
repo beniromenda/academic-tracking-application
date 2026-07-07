@@ -285,16 +285,17 @@ def user_list(request):
 	user_rows = []
 	for user_obj in users:
 		account = _ensure_account(user_obj)
-		user_rows.append({'user_obj': user_obj, 'role': account.role, 'status': account.status, 'teacher_id': account.teacher_id})
+		user_rows.append({'user_obj': user_obj, 'role': account.role, 'status': account.status})
 	return render(request, 'core/user_list.html', {'user_rows': user_rows, 'query': query})
 
 
-def _require_user_search_query(request):
+
+def _user_list_redirect_with_query(request):
 	query = request.GET.get('q', '').strip()
-	if not query:
-		messages.error(request, 'Search for a user before updating or deactivating the account.')
-		return None, redirect('user_list')
-	return query, None
+	base_url = reverse('user_list')
+	if query:
+		return redirect(f"{base_url}?q={query}")
+	return redirect(base_url)
 
 
 @login_required
@@ -345,14 +346,10 @@ def user_update(request, user_id):
 	if access_denied:
 		return access_denied
 
-	query, redirect_response = _require_user_search_query(request)
-	if redirect_response:
-		return redirect_response
-
 	user_obj = get_object_or_404(User, pk=user_id)
 	if user_obj.is_superuser:
 		messages.error(request, 'Administrator accounts cannot be edited from this screen.')
-		return redirect(f"{reverse('user_list')}?q={query}")
+		return _user_list_redirect_with_query(request)
 	account = _ensure_account(user_obj)
 	initial = {
 		'full_name': f'{user_obj.first_name} {user_obj.last_name}'.strip() or user_obj.username,
@@ -365,7 +362,7 @@ def user_update(request, user_id):
 		if form.is_valid():
 			form.save()
 			messages.success(request, 'User account updated successfully.')
-			return redirect(f"{reverse('user_list')}?q={query}")
+			return _user_list_redirect_with_query(request)
 	else:
 		form = UserAccountUpdateForm(initial=initial, user_obj=user_obj)
 	return render(request, 'core/form.html', {'form': form, 'title': 'Update User Account'})
@@ -377,14 +374,10 @@ def user_deactivate(request, user_id):
 	if access_denied:
 		return access_denied
 
-	query, redirect_response = _require_user_search_query(request)
-	if redirect_response:
-		return redirect_response
-
 	user_obj = get_object_or_404(User, pk=user_id)
 	if user_obj.is_superuser:
 		messages.error(request, 'Administrator accounts cannot be deactivated from this screen.')
-		return redirect(f"{reverse('user_list')}?q={query}")
+		return _user_list_redirect_with_query(request)
 	account = _ensure_account(user_obj)
 	if request.method == 'POST':
 		user_obj.is_active = False
@@ -392,8 +385,30 @@ def user_deactivate(request, user_id):
 		account.status = UserAccount.STATUS_INACTIVE
 		account.save(update_fields=['status'])
 		messages.success(request, 'User account deactivated successfully.')
-		return redirect(f"{reverse('user_list')}?q={query}")
+		return _user_list_redirect_with_query(request)
 	return render(request, 'core/confirm_delete.html', {'title': 'Deactivate User Account', 'object': user_obj})
+
+
+@login_required
+def user_activate(request, user_id):
+	access_denied = _deny_if_not(_is_admin(request.user))
+	if access_denied:
+		return access_denied
+
+	user_obj = get_object_or_404(User, pk=user_id)
+	if user_obj.is_superuser:
+		messages.error(request, 'Administrator accounts cannot be activated from this screen.')
+		return _user_list_redirect_with_query(request)
+
+	account = _ensure_account(user_obj)
+	if request.method == 'POST':
+		user_obj.is_active = True
+		user_obj.save(update_fields=['is_active'])
+		account.status = UserAccount.STATUS_ACTIVE
+		account.save(update_fields=['status'])
+		messages.success(request, 'User account activated successfully.')
+		return _user_list_redirect_with_query(request)
+	return render(request, 'core/confirm_delete.html', {'title': 'Activate User Account', 'object': user_obj})
 
 
 @login_required
@@ -810,7 +825,7 @@ def result_create(request):
 	selected_learner_id = request.POST.get('learner') if request.method == 'POST' else request.GET.get('learner', '').strip()
 	selected_task_id = request.POST.get('task') if request.method == 'POST' else request.GET.get('task', '').strip()
 	selected_learner_queryset = _teacher_learner_records(request.user)
-	selected_task_queryset = _teacher_owned(AssessmentTask.objects.select_related('competency', 'subject').all(), request.user)
+	selected_task_queryset = AssessmentTask.objects.select_related('competency', 'subject').all()
 	selected_learner = selected_learner_queryset.filter(pk=selected_learner_id).first() if selected_learner_id else None
 	if selected_learner:
 		assigned_competency_ids = TeacherLearnerCompetencyAssignment.objects.filter(
@@ -947,7 +962,7 @@ def result_bulk_entry(request):
 
 	active_subject = _active_subject_for_request(request)
 	learners = _teacher_learner_records(request.user).order_by('learner_profile__full_name')
-	tasks = _teacher_owned(AssessmentTask.objects.select_related('competency', 'subject').all(), request.user)
+	tasks = AssessmentTask.objects.select_related('competency', 'subject').all()
 	if active_subject:
 		tasks = tasks.filter(subject=active_subject)
 	tasks = tasks.order_by('task_name')
@@ -1029,9 +1044,19 @@ def report_view(request):
 			selected_competency = report_feedback.competency
 			selected_competency_id = str(report_feedback.competency_id)
 			selected_learner = learner_profile
-			results = report_feedback.assessment_results.select_related('learner', 'task', 'task__competency', 'created_by').order_by('task__task_name')
-			report_already_saved = True
-			teacher_feedback_text = report_feedback.feedback
+			competency_feedbacks = LearnerReportFeedback.objects.filter(
+				learner=learner_profile,
+				competency=selected_competency,
+				is_available_for_learner=True,
+			).order_by('-updated_at')
+			report_feedback = competency_feedbacks.first()
+			results = AssessmentResult.objects.select_related('learner', 'task', 'task__competency', 'created_by').filter(
+				learner=learner_profile,
+				task__competency=selected_competency,
+				saved_report_feedbacks__in=competency_feedbacks,
+			).distinct().order_by('task__task_name')
+			report_already_saved = bool(report_feedback)
+			teacher_feedback_text = report_feedback.feedback if report_feedback else ''
 			task_rows = [{'task': result.task, 'competency': result.task.competency, 'result': result} for result in results]
 
 	if current_role != UserAccount.ROLE_LEARNER and selected_learner_record:
@@ -1040,7 +1065,6 @@ def report_view(request):
 		).distinct().order_by('competency_code')
 
 		tasks_queryset = AssessmentTask.objects.select_related('competency').filter(competency__in=assigned_competencies)
-		tasks_queryset = _teacher_owned(tasks_queryset, request.user)
 		if active_subject:
 			tasks_queryset = tasks_queryset.filter(subject=active_subject)
 		tasks_queryset = tasks_queryset.order_by('competency__competency_code', 'task_name')
@@ -1118,6 +1142,8 @@ def report_view(request):
 		elif not results.exists():
 			messages.error(request, 'No assessment results found for the selected learner record.')
 		else:
+			created_report_count = 0
+			skipped_report_count = 0
 			for competency in assigned_competencies:
 				competency_results = results.filter(task__competency=competency)
 				status_counts = (
@@ -1126,7 +1152,7 @@ def report_view(request):
 					.order_by('-total', 'mastery_status')
 				)
 				overall_status = status_counts[0]['mastery_status'] if status_counts else AssessmentResult.MASTERY_DEVELOPING
-				report_feedback, _ = LearnerReportFeedback.objects.update_or_create(
+				report_feedback, created = LearnerReportFeedback.objects.get_or_create(
 					teacher_learner_record=selected_learner_record,
 					competency=competency,
 					defaults={
@@ -1137,8 +1163,18 @@ def report_view(request):
 						'is_available_for_learner': True,
 					},
 				)
-				report_feedback.assessment_results.set(competency_results)
-			messages.success(request, 'Report saved successfully.')
+				if created:
+					report_feedback.assessment_results.set(competency_results)
+					created_report_count += 1
+				else:
+					skipped_report_count += 1
+
+			if created_report_count and not skipped_report_count:
+				messages.success(request, 'Report saved successfully.')
+			elif created_report_count and skipped_report_count:
+				messages.warning(request, 'Some reports were already saved and were skipped. New reports were saved for the remaining competencies.')
+			else:
+				messages.info(request, 'Report already saved for this learner record. Save-only mode does not allow updates.')
 			return redirect(f"{reverse('report_view')}?learner={selected_learner_record.id}&view_report=1")
 
 	return render(
@@ -1214,23 +1250,30 @@ def my_reports_view(request):
 			.filter(learner=learner, is_available_for_learner=True)
 			.select_related('competency', 'teacher_learner_record')
 			.prefetch_related('assessment_results__task__subject')
-			.order_by('-created_at')
+			.order_by('-updated_at', '-created_at')
 		)
 
+		grouped_reports = {}
 		for report in reports:
-			subject_names = sorted(
-				{
-					result.task.subject.subject_name
-					for result in report.assessment_results.all()
-					if result.task.subject
-				}
+			entry = grouped_reports.get(report.competency_id)
+			if entry is None:
+				entry = {'report': report, 'subject_names': set()}
+				grouped_reports[report.competency_id] = entry
+			for result in report.assessment_results.all():
+				if result.task.subject:
+					entry['subject_names'].add(result.task.subject.subject_name)
+
+		report_rows = [
+			{
+				'report': entry['report'],
+				'subject_name': ', '.join(sorted(entry['subject_names'])) if entry['subject_names'] else '-',
+			}
+			for _, entry in sorted(
+				grouped_reports.items(),
+				key=lambda item: item[1]['report'].updated_at,
+				reverse=True,
 			)
-			report_rows.append(
-				{
-					'report': report,
-					'subject_name': ', '.join(subject_names) if subject_names else '-',
-				}
-			)
+		]
 
 	return render(
 		request,
